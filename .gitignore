@@ -1,0 +1,19 @@
+.env
+db-config.php
+*.log
+.vscode/
+.idea/
+node_modules/
+vendor/
+
+# Translation cache generated at runtime by api/translate.php
+cache/
+*.pdf
+
+# App-generated local files — never commit user media.
+storage/
+# Deployment archives
+*.zip
+
+# Local dev server launcher (starts PHP with a raised upload limit)
+start-server.bat

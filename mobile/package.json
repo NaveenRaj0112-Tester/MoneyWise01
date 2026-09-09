@@ -1,0 +1,26 @@
+{
+  "name": "moneywise-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MoneyWise mobile app (Capacitor) — talks to the MoneyWise PHP REST API over HTTPS.",
+  "scripts": {
+    "build:www": "node scripts/set-env.mjs",
+    "sync": "npm run build:www && npx cap sync",
+    "add:platforms": "npx cap add android && npx cap add ios",
+    "icons": "npx capacitor-assets generate --assetPath resources",
+    "android:open": "npx cap open android",
+    "android:apk:debug": "cd android && ./gradlew assembleDebug",
+    "android:apk:release": "cd android && ./gradlew assembleRelease",
+    "android:aab:release": "cd android && ./gradlew bundleRelease",
+    "ios:open": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.0",
+    "@capacitor/cli": "^7.0.0"
+  }
+}

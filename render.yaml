@@ -1,0 +1,24 @@
+# Render Blueprint — deploy MoneyWise as a Docker web service.
+# Usage: create a MySQL database at a provider (Render only offers PostgreSQL
+# natively; for MySQL use e.g. Aiven free tier), then set the four values
+# below in Service > Environment (they are marked `sync: false` so Render
+# prompts you for them and keeps DB_PASS as a secret).
+services:
+  - type: web
+    name: moneywise
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_SSL
+        value: "0"
