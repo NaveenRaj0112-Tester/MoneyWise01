@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <title>Sign In — MoneyWise</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link rel="stylesheet" href="assets/app.css?v=<?php echo @filemtime(__DIR__ . '/assets/app.css'); ?>"/>
+<?php require __DIR__ . '/includes/pwa-head.php'; ?>
 </head>
 <body>
 <div class="auth-wrap">

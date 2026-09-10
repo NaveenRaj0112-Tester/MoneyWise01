@@ -21,16 +21,8 @@ $logov = @filemtime(__DIR__ . '/Mlogo/MoneywiseLOGO.png');
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link rel="stylesheet" href="assets/app.css?v=<?php echo $cssv; ?>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#7c3aed">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MoneyWise">
-<link rel="apple-touch-icon" href="assets/pwa-icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/pwa-icons/icon-192.png">
-<link rel="icon" type="image/svg+xml" href="assets/pwa-icons/icon.svg">
+<?php require __DIR__ . '/includes/pwa-head.php'; ?>
 <meta name="description" content="Smart expense tracker with AI assistant, reports, and budget management">
-<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 <div id="root"></div>
@@ -4158,13 +4150,6 @@ window.addEventListener('hashchange', ()=>{
 applyTheme();
 boot();
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('SW registered:', reg.scope))
-      .catch(err => console.log('SW registration failed:', err));
-  });
-}
 </script>
 </body>
 </html>

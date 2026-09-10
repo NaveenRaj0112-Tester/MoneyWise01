@@ -1,0 +1,18 @@
+# PWA manifest and service worker
+<Files "manifest.json">
+    ForceType application/manifest+json
+</Files>
+
+# Header directives need mod_headers (enabled in Dockerfile). Without the
+# IfModule guard, a server lacking mod_headers returns 500 for the whole site.
+<IfModule mod_headers.c>
+    <Files "manifest.json">
+        Header set Cache-Control "no-cache"
+    </Files>
+
+    <Files "service-worker.js">
+        Header set Content-Type "application/javascript"
+        Header set Service-Worker-Allowed "/"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </Files>
+</IfModule>

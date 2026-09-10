@@ -1,30 +1,14 @@
-const CACHE_NAME = 'moneywise-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.php',
-  '/assets/app.css',
-  '/manifest.json',
-  '/Mlogo/MoneywiseLOGO.png',
-  '/assets/pwa-icons/icon-192.png',
-  '/assets/pwa-icons/icon-512.png'
-];
+const CACHE_NAME = 'moneywise-v5';
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.log('Some assets failed to cache:', err);
-      });
-    })
-  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
+    caches.keys().then(names => {
       return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+        names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))
       );
     })
   );
@@ -34,12 +18,20 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
+  // Manifest and install icons bypass the SW so Chrome never installs from a stale cached copy.
+  if (event.request.url.includes('/manifest.json') || event.request.url.includes('/assets/pwa-icons/')) return;
+
   if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({ error: 'Offline' }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
+      fetch(event.request).then(response => {
+        return response;
+      }).catch(() => {
+        return caches.match('/index.php');
       })
     );
     return;
@@ -48,13 +40,12 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(cached => {
       const fetched = fetch(event.request).then(response => {
-        if (response && response.status === 200) {
+        if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
       }).catch(() => cached);
-
       return cached || fetched;
     })
   );
