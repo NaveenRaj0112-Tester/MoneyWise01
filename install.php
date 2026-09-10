@@ -68,7 +68,7 @@ try {
 
 if ($reset) {
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-    foreach (['ai_messages', 'ai_conversations', 'event_expenses', 'events', 'expense_items', 'categories', 'salary_history', 'salaries', 'cleared_items', 'transactions', 'api_tokens', 'auth_attempts', 'users'] as $t) {
+    foreach (['app_updates', 'ai_messages', 'ai_conversations', 'event_expenses', 'events', 'expense_items', 'categories', 'salary_history', 'salaries', 'cleared_items', 'transactions', 'api_tokens', 'auth_attempts', 'users'] as $t) {
         $pdo->exec('DROP TABLE IF EXISTS `' . $t . '`');
     }
     $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');

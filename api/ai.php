@@ -497,7 +497,7 @@ $has = fn(array $keys): bool => (bool)array_filter($keys, fn($k) => mb_strpos($e
     $isAvgMonthly    = $has(['average monthly', 'average month', 'avg monthly', 'monthly average', 'average per month', 'average spending', 'monthly average spending', 'per month on average', 'average month spending']);
     $isCategoryGrowth= $has(['category increased', 'increased the most', 'category grew', 'grew the most', 'category changed', 'category go up', 'increased most', 'biggest increase', 'rose the most', 'category rise']);
     $isTrend         = $has(['spending trend', 'spending pattern', 'trend', 'monthly trend', 'trend over', 'over the months', 'month by month', 'spending over time', 'trending']);
-    $isTopCategory   = $has(['where do i spend the most', 'where am i spending the most', 'top category', 'top categories', 'top spending category', 'top expense categories', 'top expense category', 'spending the most', 'spend most on', 'spend the most', 'most spent on', 'which category', 'main category', 'big portion', 'category breakdown', 'category wise', 'by category', 'categories by', 'expense categories', 'spending categories']);
+    $isTopCategory   = $has(['where do i spend the most', 'where am i spending the most', 'top category', 'top categories', 'top spending category', 'top expense categories', 'top expense category', 'top expenses', 'spending the most', 'spend most on', 'spend the most', 'most spent on', 'which category', 'main category', 'big portion', 'category breakdown', 'category wise', 'by category', 'categories by', 'expense categories', 'spending categories', 'top categories of expense', 'which expense category', 'highest spending category', 'most spending category', 'top expense', 'expense breakdown']);
     $isBiggest       = $has(['biggest expense', 'biggest expenses', 'largest expense', 'largest expenses', 'big expenses', 'top expenses', 'largest single', 'biggest single']);
     $isSummary       = $has(['summary of my spending', 'summary of spending', 'spending summary', 'overall summary', 'summary of my finances', 'give me a summary', 'financial summary', 'summarize my']);
     $isSuggestions   = $has(['reduce my expenses', 'reduce expenses', 'cut my expenses', 'save money', 'control my expenses', 'save on spending', 'suggestions', 'improve my spending', 'help me save', 'reduce spending', 'cuts costs', 'budget my expenses', 'saving', 'save on']);
@@ -668,6 +668,28 @@ $has = fn(array $keys): bool => (bool)array_filter($keys, fn($k) => mb_strpos($e
     // Exactly ONE primary intent is chosen. The composer renders only the data
     // that intent asked for, which is what keeps replies focused instead of
     // dumping every value that happened to be computed.
+
+    // Pre-check: a pure how-to question about using the app ("how do I add an
+    // expense?") is answered by ai_guide(), so the finance resolver attaches no
+    // data to it. A question that asks for a real value or an analysis ("help
+    // me save money", "explain my spending trend", "how do I check my balance")
+    // must still resolve against the user's records.
+    $isHelpQuery = $has([
+        'how do i', 'how do you', 'how can i', 'how to', 'how it works', 'step by step',
+        'walk me through', 'tell me how', 'what can i do', 'what can you do',
+        'add expense', 'add income', 'add category', 'add event',
+    ]) || (bool)preg_match('/\b(?:how|what)\s+(?:does|do|is|are)\b.*\b(?:work|works|mean)\b/iu', $q);
+    $wantsValue = $isBalance || $isCompare || $isMonthAnalysis || $isAvgMonthly || $isCategoryGrowth
+        || $isTrend || $isTopCategory || $isBiggest || $isSummary || $isSuggestions
+        || $isToday || $isYesterday || $isThisMonth || $isLastMonth || $isThisWeek || $isThisYear || $isLastYear
+        || $foundMonth !== null || $has(['how much', 'how many']);
+    if ($isHelpQuery && !$wantsValue) {
+        // Let the guide function handle this; mark as UNKNOWN so finance
+        // resolver returns no data and the guide's response is used.
+        $data['intent'] = 'UNKNOWN';
+        return $data;
+    }
+
     $intent = 'GENERAL_FINANCE';
     if ($isBalanceExplain) {
         $intent = 'BALANCE_EXPLAIN';
@@ -1324,7 +1346,7 @@ function ai_phrases(string $lang): array
             'compareNone'   => 'There is no spending to compare this month vs last month.',
             'compare'       => 'You spent %1$s this month vs %2$s last month (%3$s%%, %4$s).',
             'noMatch'       => 'I could not find a matching financial question. Try asking about your spending, income, or a specific month.',
-            'unknown'       => "I'm not sure what you mean. You can ask me things like:\n• What is my balance?\n• How much did I spend today?\n• How much did I spend on vegetables?\n• Show my monthly expenses.",
+            'unknown'       => "I'm not sure what you mean. You can ask me things like:\n• What is my balance?\n• How much did I spend today?\n• How much did I spend on vegetables?\n• Show my monthly expenses.\n• What are my top expense categories?\n• How do I add an expense?\n• How do I create a category?\n• Generate a PDF report.",
             'listItem'      => '• %s',
             'monthAnalysis' => 'Your highest spending month was %s with a total of %s across %d transaction(s).',
             'monthAnalysisLow' => 'Your lowest spending month was %s with %s.',
@@ -1411,7 +1433,7 @@ function ai_phrases(string $lang): array
             'compareNone'   => 'இந்த மாதம் மற்றும் கடந்த மாதம் ஒப்பிட்டு எந்த செலவும் இல்லை.',
             'compare'       => 'நீங்கள் இந்த மாதம் %s, கடந்த மாதம் %s செலவு செய்தீர்கள் (%s% %s).',
             'noMatch'       => 'பொருந்தும் நிதி கேள்வி எதுவும் கிடைக்கவில்லை. உங்கள் செலவு, வருமானம் அல்லது ஒரு குறிப்பிட்ட மாதத்தைப் பற்றி கேளுங்கள்.',
-            'unknown'       => "உங்கள் கருத்து எனக்கு புரியவில்லை. இப்படி என்னிடம் கேளுங்கள்:\n• என் இருப்பு எவ்வளவு?\n• இன்று எவ்வளவு செலவு செய்தேன்?\n• காய்கறிகளுக்கு எவ்வளவு செலவு செய்தேன்?\n• என் மாதிரி மாத செலவுகளைக் காட்டு.",
+            'unknown'       => "உங்கள் கருத்து எனக்கு புரியவில்லை. இப்படி என்னிடம் கேளுங்கள்:\n• என் இருப்பு எவ்வளவு?\n• இன்று எவ்வளவு செலவு செய்தேன்?\n• காய்கறிகளுக்கு எவ்வளவு செலவு செய்தேன்?\n• என் மாதிரி மாத செலவுகளைக் காட்டு.\n• என் முக்கிய செலவு வகைகள் என்ன?\n• செலவை எப்படி சேர்ப்பது?\n• PDF அறிக்கையை எப்படி உருவாக்குவது?",
             'listItem'      => '• %s',
         ],
     ];
@@ -1434,7 +1456,7 @@ function ai_phrases(string $lang): array
         'catSpent'    => '“%s”-ന് നിങ്ങളുടെ ആകെ ചെലവ് %s, %d രേഖകളിലായി.',
         'catNone'     => '“%s” നായി യാതൊരു ഇടപാടും കണ്ടെത്തിയില്ല.',
         'noMatch'     => 'പൊരുത്തപ്പെടുന്ന സാമ്പത്തിക ചോദ്യമൊന്നും കണ്ടെത്താനായില്ല. നിങ്ങളുടെ ചെലവ്, വരുമാനം അല്ലെങ്കിൽ ഒരു പ്രത്യേക മാസത്തെ കുറിച്ച് ചോദിക്കുക.',
-        'unknown'     => "നിങ്ങൾ എന്താണ് ഉദ്ദേശിക്കുന്നതെന്ന് എനിക്ക് മനസ്സിലായില്ല. ഇതുപോലുള്ള ചോദ്യങ്ങൾ ചോദിക്കാം:\n• എന്റെ ബാലൻസ് എത്ര?\n• ഇന്ന് ഞാൻ എത്ര ചെലവഴിച്ചു?\n• പച്ചക്കറികൾക്ക് എത്ര ചെലവഴിച്ചു?\n• എന്റെ പ്രതിമാസ ചെലവുകൾ കാണിക്കൂ.",
+        'unknown'     => "നിങ്ങൾ എന്താണ് ഉദ്ദേശിക്കുന്നതെന്ന് എനിക്ക് മനസ്സിലായില്ല. ഇതുപോലുള്ള ചോദ്യങ്ങൾ ചോദിക്കാം:\n• എന്റെ ബാലൻസ് എത്ര?\n• ഇന്ന് ഞാൻ എത്ര ചെലവഴിച്ചു?\n• പച്ചക്കറികൾക്ക് എത്ര ചെലവഴിച്ചു?\n• എന്റെ പ്രതിമാസ ചെലവുകൾ കാണിക്കൂ.\n• എന്റെ മുൻനിര ചെലവ് വിഭാഗങ്ങൾ എന്ത്?\n• ചെലവ് എങ്ങനെ ചേർക്കാം?\n• PDF റിപ്പോർട്ട് എങ്ങനെ സൃഷ്ടിക്കാം?",
         'weekSpent'   => 'ഈ ആഴ്ച നിങ്ങൾ %s ചെലവഴിച്ചു.',
         'yearNone'    => 'ആ വർഷത്തേക്ക് യാതൊരു ഇടപാടും കണ്ടെത്തിയില്ല.',
     ]);
@@ -1454,7 +1476,7 @@ function ai_phrases(string $lang): array
         'catSpent'    => '“%s” पर आपका कुल खर्च %s है, %d रिकॉर्ड में।',
         'catNone'     => '“%s” के लिए कोई मिलान लेनदेन नहीं मिला।',
         'noMatch'     => 'कोई मिलता-जुलता वित्तीय प्रश्न नहीं मिला। अपने खर्च, आय या किसी विशेष महीने के बारे में पूछें।',
-        'unknown'     => "मुझे समझ नहीं आया कि आप क्या कहना चाहते हैं। आप मुझसे ऐसे सवाल पूछ सकते हैं:\n• मेरा बैलेंस कितना है?\n• मैंने आज कितना खर्च किया?\n• सब्ज़ियों पर कितना खर्च किया?\n• मेरे मासिक खर्च दिखाएँ।",
+        'unknown'     => "मुझे समझ नहीं आया कि आप क्या कहना चाहते हैं। आप मुझसे ऐसे सवाल पूछ सकते हैं:\n• मेरा बैलेंस कितना है?\n• मैंने आज कितना खर्च किया?\n• सब्ज़ियों पर कितना खर्च किया?\n• मेरे मासिक खर्च दिखाएँ।\n• मेरे शीर्ष खर्च श्रेणियाँ क्या हैं?\n• खर्च कैसे जोड़ें?\n• PDF रिपोर्ट कैसे बनाएँ?",
         'weekSpent'   => 'इस सप्ताह आपने %s खर्च किया।',
         'yearNone'    => 'उस वर्ष के लिए कोई लेनदेन नहीं मिला।',
         'maxExpense'  => 'रिकॉर्ड में आपका सबसे बड़ा एकल खर्च %s है।',
@@ -1475,7 +1497,7 @@ function ai_phrases(string $lang): array
         'catSpent'    => '“%s” ಮೇಲಿನ ನಿಮ್ಮ ಒಟ್ಟು ಖರ್ಚು %s, %d ದಾಖಲೆಗಳಲ್ಲಿ.',
         'catNone'     => '“%s” ಗಾಗಿ ಯಾವುದೇ ಹೊಂದಾಣಿಕೆಯ ವಹಿವಾಟು ಕಂಡುಬಂದಿಲ್ಲ.',
         'noMatch'     => 'ಹೊಂದಾಣಿಕೆಯ ಹಣಕಾಸಿನ ಪ್ರಶ್ನೆ ಕಂಡುಬಂದಿಲ್ಲ. ನಿಮ್ಮ ಖರ್ಚು, ಆದಾಯ ಅಥವಾ ನಿರ್ದಿಷ್ಟ ತಿಂಗಳ ಬಗ್ಗೆ ಕೇಳಿ.',
-        'unknown'     => "ನೀವು ಏನು ಹೇಳುತ್ತಿದ್ದೀರಿ ಎಂದು ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ನೀವು ನನ್ನನ್ನು ಹೀಗೆ ಕೇಳಬಹುದು:\n• ನನ್ನ ಬಾಕಿ ಎಷ್ಟು?\n• ಇಂದು ಎಷ್ಟು ಖರ್ಚು ಮಾಡಿದ್ದೇನೆ?\n• ತರಕಾರಿಗಳಿಗೆ ಎಷ್ಟು ಖರ್ಚು ಮಾಡಿದ್ದೇನೆ?\n• ನನ್ನ ಮಾಸಿಕ ಖರ್ಚುಗಳನ್ನು ತೋರಿಸಿ.",
+        'unknown'     => "ನೀವು ಏನು ಹೇಳುತ್ತಿದ್ದೀರಿ ಎಂದು ನನಗೆ ಅರ್ಥವಾಗಲಿಲ್ಲ. ನೀವು ನನ್ನನ್ನು ಹೀಗೆ ಕೇಳಬಹುದು:\n• ನನ್ನ ಬಾಕಿ ಎಷ್ಟು?\n• ಇಂದು ಎಷ್ಟು ಖರ್ಚು ಮಾಡಿದ್ದೇನೆ?\n• ತರಕಾರಿಗಳಿಗೆ ಎಷ್ಟು ಖರ್ಚು ಮಾಡಿದ್ದೇನೆ?\n• ನನ್ನ ಮಾಸಿಕ ಖರ್ಚುಗಳನ್ನು ತೋರಿಸಿ.\n• ನನ್ನ ಶ್ರೇಷ್ಠ ಖರ್ಚು ವರ್ಗಗಳು ಯಾವುವು?\n• ಖರ್ಚನ್ನು ಹೇಗೆ ಸೇರಿಸಬಹುದು?\n• PDF ವರದಿಯನ್ನು ಹೇಗೆ ರಚಿಸಬಹುದು?",
         'weekSpent'   => 'ಈ ವಾರ ನೀವು %s ಖರ್ಚು ಮಾಡಿದ್ದೀರಿ.',
         'yearNone'    => 'ಆ ವರ್ಷಕ್ಕೆ ಯಾವುದೇ ವಹಿವಾಟು ಕಂಡುಬಂದಿಲ್ಲ.',
     ]);
@@ -1577,7 +1599,7 @@ function ai_compose_local(array $d, string $lang = 'en'): string
         ));
         $p = $d['pct_vs_last'] ?? null;
         if ($p !== null) {
-            $dir = $p >= 0 ? 'up' : 'down';
+            $dir = ($p > 0 ? 'up' : ($p < 0 ? 'down' : 'no change'));
             $add(sprintf($P['compare'], ai_money((float)$d['month_spent']), ai_money((float)$d['last_month_spent']), number_format(abs((float)$p), 1), $dir));
         }
         if (!empty($d['month_top'])) {
@@ -1596,7 +1618,7 @@ function ai_compose_local(array $d, string $lang = 'en'): string
         $add(sprintf($P['lastYearLead'], $lastY, ai_money((float)$d['last_year_spent']), ai_money((float)($d['last_year_income'] ?? 0)), (int)($d['last_year_tx_count'] ?? 0)));
         $p = $d['pct_year_vs_last'] ?? null;
         if ($p !== null) {
-            $add(sprintf($P['compareYears'], ai_money((float)$d['year_spent']), $thisY, ai_money((float)$d['last_year_spent']), $lastY, number_format(abs((float)$p), 1), $p >= 0 ? 'up' : 'down'));
+            $add(sprintf($P['compareYears'], ai_money((float)$d['year_spent']), $thisY, ai_money((float)$d['last_year_spent']), $lastY, number_format(abs((float)$p), 1), ($p > 0 ? 'up' : ($p < 0 ? 'down' : 'no change'))));
         }
         return implode("\n", $rows);
     }
@@ -2062,66 +2084,74 @@ function ai_guide(?string $q, string $lang = 'en'): ?array
         }
         return false;
     };
-    // Fuzzy match: Levenshtein distance <= 2 for typo tolerance (expence→expense, catogory→category)
-    $fuzzyAny = static function (array $words) use ($text): bool {
-        $clean = trim(preg_replace('/\s+/u', ' ', $text));
-        $tokens = preg_split('/\s+/u', $clean);
+    // Typo tolerance is judged per WORD and scales with the word's length, so
+    // "expence"→expense and "catogory"→category still match while short words
+    // never drift into other words ("and" is not "add", "my income" is not
+    // "add income").
+    $tokens = preg_split('/[^\p{L}\p{N}]+/u', trim($text), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $near = static function (string $tok, string $word): bool {
+        if ($tok === $word) {
+            return true;
+        }
+        $len = mb_strlen($word);
+        $allowed = $len >= 7 ? 2 : ($len >= 5 ? 1 : 0);
+        return $allowed > 0 && abs(mb_strlen($tok) - $len) <= $allowed && levenshtein($tok, $word) <= $allowed;
+    };
+    // Fuzzy phrase match: exact substring, or the phrase's words appearing as
+    // consecutive tokens that are each a near match.
+    $fuzzyAny = static function (array $words) use ($text, $tokens, $near): bool {
         foreach ($words as $w) {
-            $w = mb_strtolower($w);
-            if ($w === '') continue;
-            // Direct substring match first
-            if (mb_strpos($clean, $w) !== false) return true;
-            // Fuzzy: check if any token is within edit distance 2 of the word
-            foreach ($tokens as $tok) {
-                if (mb_strlen($tok) >= 3 && levenshtein($tok, $w) <= 2) return true;
+            $w = mb_strtolower(trim($w));
+            if ($w === '') {
+                continue;
             }
-            // Also try multi-word fuzzy: join adjacent tokens and compare
-            for ($i = 0; $i < count($tokens) - 1; $i++) {
-                $pair = $tokens[$i] . ' ' . $tokens[$i + 1];
-                if (levenshtein($pair, $w) <= 3) return true;
+            if (mb_strpos($text, $w) !== false) {
+                return true;
+            }
+            $parts = preg_split('/\s+/u', $w);
+            $n = count($parts);
+            for ($i = 0; $i + $n <= count($tokens); $i++) {
+                $ok = true;
+                foreach ($parts as $k => $p) {
+                    if (!$near($tokens[$i + $k], $p)) {
+                        $ok = false;
+                        break;
+                    }
+                }
+                if ($ok) {
+                    return true;
+                }
             }
         }
         return false;
     };
-    // Fuzzy match: Levenshtein distance <= 2 for typo tolerance (expence->expense, catogory->category)
-    $fuzzyAny = static function (array $words) use ($text): bool {
-        $clean = trim(preg_replace('/\s+/u', ' ', $text));
-        $tokens = preg_split('/\s+/u', $clean);
-        foreach ($words as $w) {
-            $w = mb_strtolower($w);
-            if ($w === '') continue;
-            if (mb_strpos($clean, $w) !== false) return true;
-            foreach ($tokens as $tok) {
-                if (mb_strlen($tok) >= 3 && levenshtein($tok, $w) <= 2) return true;
-            }
-            for ($i = 0; $i < count($tokens) - 1; $i++) {
-                $pair = $tokens[$i] . ' ' . $tokens[$i + 1];
-                if (levenshtein($pair, $w) <= 3) return true;
-            }
-        }
-        return false;
-    };
-    // Co-occurring action words: "add" + fuzzy("expence") = "add expense" match
-    $actionWords = static function (array $groups) use ($text): bool {
-        $clean = trim(preg_replace('/\s+/u', ' ', $text));
-        $tokens = preg_split('/\s+/u', $clean);
+    // Co-occurring action words: "add" + near("expence") = "add expense" match
+    $actionWords = static function (array $groups) use ($tokens, $near): bool {
         foreach ($groups as $group) {
             $allFound = true;
             foreach ($group as $word) {
                 $found = false;
                 foreach ($tokens as $tok) {
-                    if (levenshtein($tok, mb_strtolower($word)) <= 2) { $found = true; break; }
+                    if ($near($tok, mb_strtolower($word))) {
+                        $found = true;
+                        break;
+                    }
                 }
-                if (!$found) { $allFound = false; break; }
+                if (!$found) {
+                    $allFound = false;
+                    break;
+                }
             }
-            if ($allFound) return true;
+            if ($allFound) {
+                return true;
+            }
         }
         return false;
     };
     // A question is a GUIDE question only when the user asks HOW to do something
     // (or asks what a feature does), phrased as an instruction, and NOT when they
     // are asking for an actual financial value ("how much / total / my balance").
-    $isHow = $any(['how do i', 'how do you', 'how can i', 'how to', 'how to use', 'how it works', 'how it work', 'steps', 'step by step', 'guide', 'walk me through', 'explain how', 'explain', 'tell me how', 'help me', 'use', 'showing', 'generate', 'download', 'qr code', 'scan & pay', 'scan and pay', 'upi', 'create an event', 'add an expense', 'add expense', 'add income', 'edit an expense', 'delete an expense', 'what can i do', 'what can you do', 'what does', 'what is the', 'where do i', 'how do i use', 'how to add', 'how to view', 'how to check', 'how to edit', 'how to delete', 'how to generate', 'how to download', 'how do i check', 'how do i view', 'how do i add', 'முறை', 'எப்படி', 'எவ்வாறு', 'வழி', 'कैसे', 'किस तरह', 'എങ്ങനെ', 'ഉപയോഗിക്കാം', 'ಹೇಗೆ']);
+    $isHow = $any(['how do i', 'how do you', 'how can i', 'how to', 'how to use', 'how it works', 'how it work', 'steps', 'step by step', 'guide', 'walk me through', 'explain how', 'explain', 'tell me how', 'help me', ' use ', 'showing', 'generate', 'download', 'qr code', 'scan & pay', 'scan and pay', 'upi', 'create an event', 'add an expense', 'add expense', 'add income', 'edit an expense', 'delete an expense', 'what can i do', 'what can you do', 'what does', 'what is the', 'where do i', 'how do i use', 'how to add', 'how to view', 'how to check', 'how to edit', 'how to delete', 'how to generate', 'how to download', 'how do i check', 'how do i view', 'how do i add', 'how to create', 'how to make', 'how do i create', 'how do i make', 'how can i add', 'how can i create', 'how can i make', 'add the expense', 'add the expence', 'add the income', 'add a category', 'add the category', 'add money category', 'add a money category', 'add event', 'add the event', 'add events', 'generate report', 'generate pdf', 'download report', 'download pdf', 'create pdf', 'export pdf', 'முறை', 'எப்படி', 'எவ்வாறு', 'வழி', 'कैसे', 'किस तरह', 'എങ്ങനെ', 'ഉപയോഗിക്കാം', 'ಹೇಗೆ']);
     // "How does the Status module work?", "What does the Events page do?" and
     // "Tell me about the dashboard" are feature questions too.
     // Fuzzy fallback for typos: "how to add the expence" -> matches "add expense"
@@ -2200,7 +2230,7 @@ function ai_guide(?string $q, string $lang = 'en'): ?array
     }
 
     // ---- 4. Add expense ----
-    if ($any(['add an expense', 'add expense', 'add to expense', 'record expense', 'record an expense', 'enter expense', 'enter an expense', 'log an expense', 'log the expense', 'add an expenditure', 'record expenditure', 'add new expense']) || $fuzzyAny(['add expense', 'add an expense', 'record expense']) || $actionWords([['add', 'expense'], ['add', 'expence'], ['how', 'add', 'expense'], ['how', 'add', 'expence']])) {
+    if ($any(['add an expense', 'add expense', 'add to expense', 'record expense', 'record an expense', 'enter expense', 'enter an expense', 'log an expense', 'log the expense', 'add an expenditure', 'record expenditure', 'add new expense', 'add the expense', 'add the expence', 'how to add expense', 'how to add the expense', 'how to add the expence', 'how to add an expense']) || $fuzzyAny(['add expense', 'add an expense', 'record expense', 'add the expense']) || $actionWords([['add', 'expense'], ['add', 'expence'], ['how', 'add', 'expense'], ['how', 'add', 'expence'], ['how', 'add', 'the', 'expence'], ['how', 'add', 'the', 'expense']])) {
         $steps = [
             '• Open MoneyWise and go to the Dashboard (Home).',
             '• Select the Expenses option (or tap the “Add Expense” button).',
@@ -2213,7 +2243,7 @@ function ai_guide(?string $q, string $lang = 'en'): ?array
     }
 
     // ---- 5. Add income ----
-    if ($any(['add income', 'add an income', 'record income', 'record an income', 'enter income', 'enter an income', 'log income', 'log an income', 'add new income'])) {
+    if ($any(['add income', 'add an income', 'record income', 'record an income', 'enter income', 'enter an income', 'log income', 'log an income', 'add new income', 'add the income', 'how to add income', 'how to add the income', 'how to add an income']) || $fuzzyAny(['add income', 'add an income']) || $actionWords([['add', 'income'], ['how', 'add', 'income'], ['how', 'add', 'the', 'income']])) {
         $steps = [
             '• Open MoneyWise and go to the Dashboard (Home).',
             '• Select the Income option (or tap “Add Income”).',
@@ -2226,7 +2256,7 @@ function ai_guide(?string $q, string $lang = 'en'): ?array
     }
 
     // ---- 5b. Add category ----
-    if ($any(['add category', 'add a category', 'create category', 'new category', 'add new category', 'add catogory', 'add catagory', 'create a category', 'make a category']) || $actionWords([['add', 'category'], ['add', 'catogory'], ['add', 'catagory'], ['how', 'add', 'category']])) {
+    if ($any(['add category', 'add a category', 'create category', 'new category', 'add new category', 'add catogory', 'add catagory', 'create a category', 'make a category', 'add money category', 'add a money category', 'how to add category', 'how to add a category', 'how to add money category', 'how to create category', 'how to create a category']) || $fuzzyAny(['add category', 'add a category', 'add money category']) || $actionWords([['add', 'category'], ['add', 'catogory'], ['add', 'catagory'], ['how', 'add', 'category'], ['how', 'add', 'money', 'category'], ['create', 'category']])) {
         $steps = [
             '• Open MoneyWise and go to Settings (bottom menu).',
             '• Look for the Categories section (or find it under Expenses/Income settings).',
@@ -2240,7 +2270,7 @@ function ai_guide(?string $q, string $lang = 'en'): ?array
     }
 
     // ---- 5c. Add event ----
-    if ($any(['add event', 'add an event', 'create event', 'new event', 'add new event', 'create an event', 'make an event', 'start an event']) || $actionWords([['add', 'event'], ['how', 'add', 'event'], ['create', 'event']])) {
+    if ($any(['add event', 'add an event', 'create event', 'new event', 'add new event', 'create an event', 'make an event', 'start an event', 'add events', 'how to add event', 'how to add an event', 'how to add events', 'how to create event', 'how to create an event']) || $fuzzyAny(['add event', 'add an event', 'add events']) || $actionWords([['add', 'event'], ['how', 'add', 'event'], ['create', 'event'], ['add', 'events']])) {
         $steps = [
             '• Open MoneyWise and tap Events in the bottom menu.',
             '• Tap "Create Event" or the + button.',
@@ -2366,7 +2396,7 @@ function ai_guide(?string $q, string $lang = 'en'): ?array
     }
 
     // ---- 16. PDF reports ----
-    if ($any(['pdf', 'download pdf', 'generate pdf', 'make a pdf', 'print report', 'export pdf', 'report pdf', 'download report', 'download reports', 'download my report', 'download my reports', 'get my report', 'get a report', 'print a report', 'make a report', 'save a report', 'create a report'])) {
+    if ($any(['pdf', 'download pdf', 'generate pdf', 'make a pdf', 'print report', 'export pdf', 'report pdf', 'download report', 'download reports', 'download my report', 'download my reports', 'get my report', 'get a report', 'print a report', 'make a report', 'save a report', 'create a report', 'how to generate pdf', 'how to generate a pdf', 'how to download pdf', 'how to download a pdf', 'how to create pdf', 'how to make pdf', 'how to get a report', 'how to get my report'])) {
         $steps = [
             '• Open Statistics (Status) and scroll to the Reports section.',
             '• Pick Daily, Monthly, Yearly or Category-wise PDF.',
@@ -2862,16 +2892,31 @@ switch ($action) {
             $message = mb_substr($message, 0, AI_MAX_MESSAGE);
         }
 
-        // 1b. Multi-part question detection: "how to add expense AND category AND event"
-        //     Split into sub-questions and combine answers.
+        // 1b. Multi-part HOW-TO questions ("how to add expense and income and
+        //     events", "how to add expense, how to add income"). Split only on
+        //     commas, "&" and the whole word "and", and only when at least two
+        //     parts are genuine feature-guide questions. Anything else ("compare
+        //     this month and last month", "my income and expense this month",
+        //     "candy and snacks") stays ONE question so its meaning is kept.
         $multiParts = [];
-        if (preg_match_all('/\b(?:and|&,)\s*/iu', $message, $seps)) {
-            // Split by "and" / "&" / ","
-            $parts = preg_split('/\s*(?:and|&|,)\s*/iu', $message, -1, PREG_SPLIT_NO_EMPTY);
-            // Only split if we got 2+ meaningful parts (each >= 4 chars)
-            $meaningful = array_filter($parts, fn($p) => mb_strlen(trim($p)) >= 4);
-            if (count($meaningful) >= 2) {
-                $multiParts = array_values($meaningful);
+        $splitParts = array_values(array_filter(
+            array_map('trim', preg_split('/\s*(?:,|&|\band\b)\s*/iu', $message, -1, PREG_SPLIT_NO_EMPTY) ?: []),
+            fn($p) => mb_strlen($p) >= 3
+        ));
+        if (count($splitParts) >= 2) {
+            // "how to add expense and income" -> carry "how to add" onto the bare "income".
+            $lead = preg_match('/^(.*?\b(?:add|create|make|edit|delete|generate|download|view|check|use)\b)\s+\S/iu', $splitParts[0], $lm) ? $lm[1] : '';
+            $guideHits = 0;
+            foreach ($splitParts as $i => $p) {
+                if ($i > 0 && $lead !== '' && !preg_match('/\b(?:how|what|where|add|create|make|edit|delete|generate|download|view|check|use|show)\b/iu', $p)) {
+                    $splitParts[$i] = $p = $lead . ' ' . $p;
+                }
+                if (ai_guide($p, 'en') !== null) {
+                    $guideHits++;
+                }
+            }
+            if ($guideHits >= 2) {
+                $multiParts = $splitParts;
             }
         }
 
@@ -2963,6 +3008,12 @@ switch ($action) {
                 $partFinance = ai_resolve(ai_user_id(), $part, $lang, $context);
                 if (($partFinance['intent'] ?? '') !== 'UNKNOWN') {
                     $answers[] = ai_compose_local($partFinance, $lang);
+                } else {
+                    // If a sub-part can't be answered, provide a helpful fallback
+                    $answers[] = sprintf(
+                        'For "%s": I can help with that — try asking about it separately, or ask me "what can I do?" for a full list of features.',
+                        trim($part)
+                    );
                 }
             }
             if (!empty($answers)) {

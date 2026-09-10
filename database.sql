@@ -183,3 +183,20 @@ CREATE TABLE IF NOT EXISTS ai_messages (
   INDEX idx_ai_msg_conv (conversation_id, id),
   INDEX idx_ai_msg_user (user_id)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS app_updates (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  admin_user_id INT NOT NULL,
+  admin_name VARCHAR(100) NOT NULL,
+  version_from VARCHAR(20) NULL,
+  version_to VARCHAR(20) NULL,
+  files_replaced INT DEFAULT 0,
+  files_added INT DEFAULT 0,
+  files_skipped INT DEFAULT 0,
+  files_failed INT DEFAULT 0,
+  backup_path VARCHAR(500) NULL,
+  status ENUM('applied','rolled_back','failed') DEFAULT 'applied',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (admin_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_updates_admin (admin_user_id, created_at)
+) ENGINE=InnoDB;

@@ -25,6 +25,8 @@ define('DB_SSL', getenv('DB_SSL') ?: ($__dbOverride['ssl'] ?? '0'));
 define('DB_CA', getenv('DB_CA') ?: ($__dbOverride['ca'] ?? ''));
 unset($__dbOverride);
 
+define('APP_VERSION', '1.0.0');
+
 /**
  * Security response headers (M3).
  * HSTS is only sent over HTTPS (D1 — production must terminate TLS).

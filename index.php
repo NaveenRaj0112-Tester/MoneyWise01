@@ -1,8 +1,7 @@
 <?php
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
-header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
@@ -522,6 +521,7 @@ const state = {
   expenseCats: null, // lazily-loaded [{id,name}] from api/categories.php (built-in + custom)
   events: [],        // own event summary cards (from api/events.php?action=list)
   eventYears: [],    // available years for the event filters
+  appVersion: '1.0.0', // app version from server
 };
 
 let page = 'login';
@@ -531,7 +531,7 @@ let profileTab = 'profile';
 let statusMonth = new Date().getMonth()+1;
 let statusYear  = new Date().getFullYear();
 
-const VALID_PAGES = ['dashboard','expense','income','add-expense','add-income','stats','profile','settings','tx-history','events','calc'];
+const VALID_PAGES = ['dashboard','expense','income','add-expense','add-income','stats','profile','settings','tx-history','events','calc','ai'];
 
 function setPage(p){
   page = p;
@@ -861,8 +861,61 @@ async function logout() {
   state.user = null;
   state.txs = []; state.mySalary = null; state.employees = []; state.history = []; state.years = []; state.adminUsers = []; state.clearedTxs = new Set(); state.dashBalanceCleared = false;
   calcExpr = ''; calcResult = ''; calcError = ''; calcOp = ''; calcStartNew = false;
-  aiCloseOverlay();
+  aiRemoveOverlay();
   page = 'login'; authPage = 'login'; location.hash=''; render();
+}
+
+function grmDeleteAllDataConfirm(){
+  const overlay=h('div',{class:'modal-overlay'});
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
+  const sheet=h('div',{class:'modal-sheet'});
+  sheet.appendChild(h('div',{class:'modal-handle'}));
+  sheet.appendChild(h('div',{class:'modal-title'},'Delete All Data'));
+  const warn=h('div',{style:'background:#fef2f2;border:1px solid #fecaca;border-radius:var(--r-lg);padding:14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start'});
+  warn.appendChild(h('i',{class:'fas fa-triangle-exclamation',style:'color:#dc2626;font-size:18px;margin-top:2px'}));
+  const wt=h('div',{});
+  wt.appendChild(h('div',{style:'font-size:13px;font-weight:800;color:#dc2626'},'This cannot be undone'));
+  wt.appendChild(h('div',{style:'font-size:12px;color:var(--mid);margin-top:4px;line-height:1.5'},'All your transactions, income, expenses, categories, events, AI chat history and salary records will be permanently deleted.'));
+  warn.appendChild(wt);
+  sheet.appendChild(warn);
+  const note=h('div',{style:'font-size:12px;color:var(--light);margin-bottom:18px;line-height:1.5'},'Your account will remain active. Only your data will be removed.');
+  sheet.appendChild(note);
+  const inputLabel=h('div',{style:'font-size:12px;color:var(--mid);margin-bottom:6px'},'Type DELETE to confirm:');
+  sheet.appendChild(inputLabel);
+  const confirmInput=h('input',{type:'text',class:'inp',placeholder:'Type DELETE',style:'text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:16px'});
+  sheet.appendChild(confirmInput);
+  const btnRow=h('div',{style:'display:flex;gap:10px'});
+  const cancelBtn=h('button',{class:'btn btn-s',style:'flex:1'},'Cancel');
+  cancelBtn.addEventListener('click',()=>overlay.remove());
+  const delBtn=h('button',{class:'btn btn-d',style:'flex:1;opacity:.5;cursor:not-allowed'},h('i',{class:'fas fa-trash'}),' Delete Everything');
+  delBtn.disabled=true;
+  confirmInput.addEventListener('input',()=>{
+    const v=confirmInput.value.trim().toUpperCase();
+    delBtn.disabled=(v!=='DELETE');
+    delBtn.style.opacity=delBtn.disabled?'0.5':'1';
+    delBtn.style.cursor=delBtn.disabled?'not-allowed':'pointer';
+  });
+  delBtn.addEventListener('click',async()=>{
+    if(delBtn.disabled) return;
+    delBtn.disabled=true; delBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Deleting…';
+    try{
+      const d=await api('api/data.php',{method:'POST',body:JSON.stringify({action:'delete_all'})});
+      overlay.remove();
+      if(d.ok){
+        state.txs=[]; state.mySalary=null; state.employees=[]; state.history=[]; state.years=[]; state.clearedTxs=new Set(); state.dashBalanceCleared=false;
+        calcExpr=''; calcResult=''; calcError=''; calcOp=''; calcStartNew=false;
+        toast('All data deleted successfully.');
+        render();
+      } else {
+        toast(d.error||'Failed to delete data. Please try again.');
+      }
+    }catch(e){ overlay.remove(); toast('Failed to delete data. Please try again.'); }
+  });
+  btnRow.appendChild(cancelBtn); btnRow.appendChild(delBtn);
+  sheet.appendChild(btnRow);
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+  confirmInput.focus();
 }
 
 function toast(msg) {
@@ -903,7 +956,7 @@ function confirmClear(msg, onConfirm){
   const overlay=h('div',{class:'modal-overlay'});
   const sheet=h('div',{class:'modal-sheet'});
   sheet.appendChild(h('div',{class:'modal-handle'}));
-  sheet.appendChild(h('div',{class:'modal-title'},'🧹 Clear View'));
+  sheet.appendChild(h('div',{class:'modal-title'},'🧹 Clear'));
   sheet.appendChild(h('div',{style:'background:#fffbeb;border-radius:var(--r-lg);padding:12px 14px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px;color:#92400e;font-size:13px;line-height:1.5'},h('i',{class:'fas fa-triangle-exclamation',style:'color:#d97706;margin-top:2px'}),h('div',{},msg)));
   const clearBtn=h('button',{class:'btn btn-d'},h('i',{class:'fas fa-broom'}),' Clear');
   clearBtn.addEventListener('click',()=>{ overlay.remove(); onConfirm(); });
@@ -1284,6 +1337,7 @@ function buildLogin(){
     try {
       const d = await api('api/auth.php', { method:'POST', body: JSON.stringify({ action:'login', email, password:pass }) });
       state.user = d.user;
+      if(d.app_version) state.appVersion = d.app_version;
       await refreshAll();
       setPage('dashboard'); render();
     } catch (err) {
@@ -1353,7 +1407,7 @@ function buildDashboard(){
   dh.appendChild(h('div',{class:'greeting'},greet()));
   dh.appendChild(h('div',{class:'uname'},'Hello, '+state.user.name+' 👑'));
   dh.appendChild(h('div',{class:'bal-lbl'},'Available Balance'));
-  const balRow=h('div',{style:'display:flex;align-items:center;gap:12px'});
+  const balRow=h('div',{class:'bal-row',style:'display:flex;align-items:center;gap:12px'});
   balRow.appendChild(h('div',{class:'bal-amt'},state.dashBalanceCleared?fmt(0):((bal<0?'-':'')+fmt(bal))));
   const eraseBtn=h('button',{type:'button',class:'bal-erase',title:'Erase Balance — hides the balance until a new transaction is added (records stay in the database)',onclick:()=>{
     confirmClear('This will set your displayed Available Balance to '+fmt(0)+'. No income or expense records are deleted — the balance will reappear automatically once you add a new transaction.',async ()=>{
@@ -1648,7 +1702,7 @@ function buildTxList(type){
       try{ await persistClear(ids); load(); toast('Cleared current view — database unchanged.'); }
       catch(err){ toast(err.message); }
     });
-  }},h('i',{class:'fas fa-broom'}),' Clear View');
+  }},h('i',{class:'fas fa-broom'}),' Clear');
   const btnRow=h('div',{class:'tx-clear-row'});
   btnRow.appendChild(addBtn); btnRow.appendChild(clearBtn);
   pg.appendChild(btnRow);
@@ -2222,6 +2276,191 @@ function settingsRow(iconCls, iconBg, title, sub, onClick){
   row.addEventListener('click',onClick);
   return row;
 }
+
+// ─── APP UPDATE PAGE ────────────────────────────────────────────────────────
+let appUpdate = { sessionId: null, changeset: null, history: [], uploading: false, applying: false };
+
+function buildAppUpdatePage(){
+  const pg=h('div',{class:'page fade'});
+  const phdr=h('div',{class:'page-hdr'});
+  const bb=h('button',{class:'back-btn'},h('i',{class:'fas fa-chevron-left'}));
+  bb.addEventListener('click',()=>{ settingsPage=null; render(); });
+  phdr.appendChild(bb);
+  phdr.appendChild(h('h2',{},'🔄 App Update'));
+  pg.appendChild(phdr);
+
+  // Version info
+  const verCard=h('div',{class:'card'});
+  verCard.appendChild(h('div',{style:'font-size:13px;font-weight:700;margin-bottom:8px'},'Current Version'));
+  verCard.appendChild(h('div',{style:'font-size:22px;font-weight:800;color:var(--p1)'}, state.appVersion || '1.0.0'));
+  verCard.appendChild(h('div',{style:'font-size:11px;color:var(--light);margin-top:4px'},'Upload a delta .zip containing changed files. Only different files will be applied.'));
+  pg.appendChild(verCard);
+
+  // Upload section
+  const uploadCard=h('div',{class:'card'});
+  uploadCard.appendChild(h('div',{style:'font-size:13px;font-weight:700;margin-bottom:10px'},'Upload Delta ZIP'));
+
+  const fileInput=h('input',{type:'file',accept:'.zip',style:'display:none',id:'app-update-file'});
+  uploadCard.appendChild(fileInput);
+
+  const uploadBtn=h('button',{class:'btn btn-p',style:'margin-top:0'},h('i',{class:'fas fa-upload'}),' Select ZIP File');
+  uploadBtn.addEventListener('click',()=>fileInput.click());
+  uploadCard.appendChild(uploadBtn);
+
+  const fileInfo=h('div',{style:'font-size:12px;color:var(--light);margin-top:8px;min-height:18px',id:'app-update-file-info'});
+  uploadCard.appendChild(fileInfo);
+
+  const uploadStatus=h('div',{style:'margin-top:10px',id:'app-update-upload-status'});
+  uploadCard.appendChild(uploadStatus);
+  pg.appendChild(uploadCard);
+
+  fileInput.addEventListener('change', async ()=>{
+    const file = fileInput.files[0];
+    if (!file) return;
+    fileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    uploadStatus.innerHTML = '';
+    appUpdate.uploading = true;
+
+    const fd = new FormData();
+    fd.append('zip', file);
+    fd.append('action', 'upload');
+
+    try {
+      const r = await fetch('api/app-update.php', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!j.ok) { uploadStatus.innerHTML = '<div class="al al-e"><i class="fas fa-circle-exclamation"></i> ' + j.error + '</div>'; appUpdate.uploading = false; return; }
+      appUpdate.sessionId = j.session_id;
+      uploadStatus.innerHTML = '<div class="al al-s"><i class="fas fa-circle-check"></i> Uploaded ' + j.file_count + ' files. Comparing...</div>';
+
+      // Auto-compare
+      const cr = await fetch('api/app-update.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'compare', session_id: j.session_id }) });
+      const cj = await cr.json();
+      if (!cj.ok) { uploadStatus.innerHTML = '<div class="al al-e"><i class="fas fa-circle-exclamation"></i> ' + cj.error + '</div>'; appUpdate.uploading = false; return; }
+
+      appUpdate.changeset = cj.changeset;
+      renderChangeset(cj, uploadStatus);
+      appUpdate.uploading = false;
+    } catch(e) {
+      uploadStatus.innerHTML = '<div class="al al-e"><i class="fas fa-circle-exclamation"></i> Network error: ' + e.message + '</div>';
+      appUpdate.uploading = false;
+    }
+  });
+
+  function renderChangeset(cj, container) {
+    const cs = cj.changeset;
+    const s = cj.summary;
+    let html = '<div style="margin-top:12px">';
+    html += '<div style="font-size:13px;font-weight:700;margin-bottom:8px">Changeset Review</div>';
+    html += '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+    html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#f0fdf4;color:#16a34a">' + s.to_add + ' to add</span>';
+    html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#fff7ed;color:#d97706">' + s.to_replace + ' to replace</span>';
+    html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--p6);color:var(--mid)">' + s.to_skip + ' skipped</span>';
+    html += '</div>';
+
+    if (cs.replace && cs.replace.length > 0) {
+      html += '<div style="font-size:11px;font-weight:700;color:var(--mid);margin-bottom:4px">Files to REPLACE:</div>';
+      html += '<div style="max-height:150px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--p5);border-radius:8px;padding:6px">';
+      cs.replace.forEach(f => { html += '<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--p6);font-family:monospace">' + f.path + '</div>'; });
+      html += '</div>';
+    }
+    if (cs.add && cs.add.length > 0) {
+      html += '<div style="font-size:11px;font-weight:700;color:var(--mid);margin-bottom:4px">Files to ADD:</div>';
+      html += '<div style="max-height:150px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--p5);border-radius:8px;padding:6px">';
+      cs.add.forEach(f => { html += '<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--p6);font-family:monospace">' + f.path + '</div>'; });
+      html += '</div>';
+    }
+    if (cs.skip && cs.skip.length > 0) {
+      html += '<div style="font-size:11px;font-weight:700;color:var(--mid);margin-bottom:4px">Files SKIPPED (identical):</div>';
+      html += '<div style="max-height:100px;overflow-y:auto;border:1px solid var(--p5);border-radius:8px;padding:6px">';
+      cs.skip.forEach(f => { html += '<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--p6);color:var(--light)">' + f.path + '</div>'; });
+      html += '</div>';
+    }
+
+    if (s.to_add + s.to_replace > 0) {
+      html += '<button class="btn btn-d" id="app-update-apply-btn" style="margin-top:12px"><i class="fas fa-check"></i> Apply Update</button>';
+    } else {
+      html += '<div class="al" style="margin-top:10px"><i class="fas fa-circle-info"></i> All files are identical. Nothing to update.</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+
+    const applyBtn = document.getElementById('app-update-apply-btn');
+    if (applyBtn) applyBtn.addEventListener('click', applyUpdate);
+  }
+
+  async function applyUpdate() {
+    if (appUpdate.applying || !appUpdate.sessionId) return;
+    appUpdate.applying = true;
+    const statusEl = document.getElementById('app-update-upload-status');
+    if (statusEl) statusEl.innerHTML = '<div class="al"><i class="fas fa-spinner fa-spin"></i> Applying update...</div>';
+
+    try {
+      const r = await fetch('api/app-update.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'apply', session_id: appUpdate.sessionId })
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        if (statusEl) statusEl.innerHTML = '<div class="al al-e"><i class="fas fa-circle-exclamation"></i> ' + j.error + '</div>';
+      } else {
+        const sm = j.summary;
+        let msg = 'Update applied! ' + sm.replaced + ' replaced, ' + sm.added + ' added, ' + sm.skipped + ' skipped.';
+        if (sm.failed > 0) msg += ' ' + sm.failed + ' failed.';
+        if (statusEl) statusEl.innerHTML = '<div class="al al-s"><i class="fas fa-circle-check"></i> ' + msg + '</div>';
+        appUpdate.sessionId = null;
+        appUpdate.changeset = null;
+        loadHistory();
+      }
+    } catch(e) {
+      if (statusEl) statusEl.innerHTML = '<div class="al al-e"><i class="fas fa-circle-exclamation"></i> Network error: ' + e.message + '</div>';
+    }
+    appUpdate.applying = false;
+  }
+
+  // History section
+  const histCard=h('div',{class:'card'});
+  histCard.appendChild(h('div',{style:'font-size:13px;font-weight:700;margin-bottom:10px'},'Update History'));
+  const histList=h('div',{id:'app-update-history'});
+  histList.innerHTML = '<div style="font-size:12px;color:var(--light)">Loading...</div>';
+  histCard.appendChild(histList);
+  pg.appendChild(histCard);
+
+  async function loadHistory() {
+    try {
+      const r = await fetch('api/app-update.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'history' })
+      });
+      const j = await r.json();
+      if (!j.ok || !j.updates.length) {
+        histList.innerHTML = '<div style="font-size:12px;color:var(--light)">No updates applied yet.</div>';
+        return;
+      }
+      let html = '';
+      j.updates.forEach(u => {
+        const d = new Date(u.created_at);
+        const dateStr = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+        const statusColor = u.status === 'applied' ? '#16a34a' : u.status === 'rolled_back' ? '#d97706' : '#dc2626';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--p6)">';
+        html += '<div>';
+        html += '<div style="font-size:12px;font-weight:700">' + dateStr + ' by ' + (u.admin_name || 'admin') + '</div>';
+        html += '<div style="font-size:11px;color:var(--light)">' + u.files_replaced + ' replaced, ' + u.files_added + ' added, ' + u.files_skipped + ' skipped</div>';
+        html += '</div>';
+        html += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;color:' + statusColor + ';background:' + statusColor + '20">' + u.status.toUpperCase() + '</span>';
+        html += '</div>';
+      });
+      histList.innerHTML = html;
+    } catch(e) {
+      histList.innerHTML = '<div style="font-size:12px;color:var(--light)">Failed to load history.</div>';
+    }
+  }
+  loadHistory();
+
+  return pg;
+}
+
 function buildSettings(){
   if(settingsPage && settingsPage.startsWith('admin') && state.user.is_admin!==1) settingsPage=null;
   if(settingsPage==='salary-management') return buildSalaryManagement();
@@ -2229,22 +2468,28 @@ function buildSettings(){
   if(settingsPage==='admin-users') return buildAdminUsers();
   if(settingsPage==='admin-view-user') return buildAdminViewUser();
   if(settingsPage==='admin-password') return buildAdminPassword();
+  if(settingsPage==='app-update') return buildAppUpdatePage();
 
   const pg=h('div',{class:'page fade'});
   pg.appendChild(h('div',{class:'page-hdr'},h('h2',{},'⚙️ Settings')));
 
   if(state.user.is_admin===1){
     const admSection=h('div',{class:'settings-section'});
-    admSection.appendChild(h('div',{class:'settings-section-title'},'Admin Controls'));
+    const admTitle=h('div',{class:'settings-section-title'},'Admin Controls');
+    admTitle.addEventListener('click',()=>admSection.classList.toggle('collapsed'));
+    admSection.appendChild(admTitle);
     const admCard=h('div',{class:'settings-card'});
     admCard.appendChild(settingsRow('fa-users', 'sri-purple', 'User Management', 'View all users and their roles', ()=>{ settingsPage='admin-users'; render(); }));
     admCard.appendChild(settingsRow('fa-receipt', 'sri-green', 'View User Expenses', 'Inspect any user\'s income & expenses', ()=>{ settingsPage='admin-view-user'; render(); }));
     admCard.appendChild(settingsRow('fa-key', 'sri-red', 'Change Admin Password', 'Update the administrator password', ()=>{ settingsPage='admin-password'; render(); }));
+    admCard.appendChild(settingsRow('fa-cloud-arrow-up', 'sri-orange', 'App Update', 'Upload a delta ZIP to update application files', ()=>{ settingsPage='app-update'; render(); }));
     admSection.appendChild(admCard);
     pg.appendChild(admSection);
 
     const salSection=h('div',{class:'settings-section'});
-    salSection.appendChild(h('div',{class:'settings-section-title'},'Salary Configuration'));
+    const salTitle=h('div',{class:'settings-section-title'},'Salary Configuration');
+    salTitle.addEventListener('click',()=>salSection.classList.toggle('collapsed'));
+    salSection.appendChild(salTitle);
     const salCard=h('div',{class:'settings-card'});
     salCard.appendChild(settingsRow('fa-money-bill-wave', 'sri-purple', 'Salary Management', 'Set & update employee salaries by month/year', ()=>{ settingsPage='salary-management'; render(); }));
     salCard.appendChild(settingsRow('fa-clock-rotate-left', 'sri-green', 'Salary History', 'View all past salary changes with filters', ()=>{ settingsPage='salary-history'; render(); }));
@@ -2253,7 +2498,9 @@ function buildSettings(){
   }
 
   const accSection=h('div',{class:'settings-section'});
-  accSection.appendChild(h('div',{class:'settings-section-title'},'Account'));
+  const accTitle=h('div',{class:'settings-section-title'},'Account');
+  accTitle.addEventListener('click',()=>accSection.classList.toggle('collapsed'));
+  accSection.appendChild(accTitle);
   const accCard=h('div',{class:'settings-card'});
   accCard.appendChild(settingsRow('fa-user', 'sri-purple', 'My Profile', state.user.name+' · '+state.user.email, ()=>{ profileTab='profile'; setPage('profile'); render(); }));
   accCard.appendChild(settingsRow('fa-robot', 'sri-purple', 'AI Assistant', 'Ask questions about your spending & income', aiOpenOverlay));
@@ -2301,61 +2548,96 @@ const AI_QUICK = [
 
 function aiOpenOverlay(){
   if(AI.el) return;
+  // One history entry per open, so the phone / browser Back button closes the chat.
+  if(location.hash!=='#ai') history.pushState(null, '', '#ai');
   const ov=h('div',{class:'ai-overlay'});
   ov.addEventListener('click',e=>{ if(e.target===ov) aiCloseOverlay(); });
-  const panel=h('div',{class:'ai-panel'});
 
-  const hdr=h('div',{class:'ai-hdr'});
-  const left=h('div',{class:'ai-hdr-l'});
-  left.appendChild(h('div',{class:'ai-hdr-t'},h('i',{class:'fas fa-robot'}),' AI Assistant'));
-  const sub=h('div',{class:'ai-hdr-s'});
-  sub.textContent='Ask about your spending & income, or how to use MoneyWise';
-  left.appendChild(sub);
-  const newBtn=h('button',{type:'button',class:'ai-hbtn',title:'New chat'},h('i',{class:'fas fa-plus'}));
-  newBtn.addEventListener('click',aiNewConversation);
-  const closeBtn=h('button',{type:'button',class:'ai-hbtn',title:'Close'},h('i',{class:'fas fa-xmark'}));
+  // History sidebar: a fixed column on wide screens, a slide-in drawer on phones.
+  const sidebar=h('div',{class:'ai-sidebar'});
+  const sideHdr=h('div',{class:'ai-sidebar-hdr'});
+  const newBtn=h('button',{type:'button',class:'ai-new-chat'},h('i',{class:'fas fa-plus'}),' New chat');
+  newBtn.addEventListener('click',()=>{ aiToggleSidebar(false); aiNewConversation(); });
+  sideHdr.appendChild(newBtn);
+  sidebar.appendChild(sideHdr);
+  const sideLabel=h('div',{class:'ai-sidebar-label'},'History');
+  sidebar.appendChild(sideLabel);
+  const sideList=h('div',{class:'ai-sidebar-list'});
+  sidebar.appendChild(sideList);
+  const backdrop=h('div',{class:'ai-side-backdrop'});
+  backdrop.addEventListener('click',()=>aiToggleSidebar(false));
+
+  const chat=h('div',{class:'ai-chat'});
+  const chatHdr=h('div',{class:'ai-chat-hdr'});
+  const histBtn=h('button',{type:'button',class:'ai-chat-close ai-hist-btn',title:'Chat history','aria-label':'Chat history'},h('i',{class:'fas fa-bars'}));
+  histBtn.addEventListener('click',()=>aiToggleSidebar());
+  chatHdr.appendChild(histBtn);
+  chatHdr.appendChild(h('div',{class:'ai-chat-title'},h('i',{class:'fas fa-robot'}),' MoneyWise AI'));
+  const status=h('div',{class:'ai-chat-status'},h('div',{class:'ai-chat-status-dot'}),' online');
+  chatHdr.appendChild(status);
+  const closeBtn=h('button',{type:'button',class:'ai-chat-close',title:'Close','aria-label':'Close'},h('i',{class:'fas fa-xmark'}));
   closeBtn.addEventListener('click',aiCloseOverlay);
-  hdr.appendChild(left); hdr.appendChild(newBtn); hdr.appendChild(closeBtn);
-  panel.appendChild(hdr);
+  chatHdr.appendChild(closeBtn);
+  chat.appendChild(chatHdr);
 
-  const convs=h('div',{class:'ai-convs'}); panel.appendChild(convs);
-  const msgs=h('div',{class:'ai-msgs'}); panel.appendChild(msgs);
-  const suggest=h('div',{class:'ai-suggest'}); panel.appendChild(suggest);
+  const msgs=h('div',{class:'ai-msgs'});
+  chat.appendChild(msgs);
+  const suggest=h('div',{class:'ai-suggest'});
+  chat.appendChild(suggest);
 
   const bar=h('div',{class:'ai-input'});
-  const ta=h('textarea',{class:'ai-ta',rows:1,placeholder:'Ask about your money…'});
-  const send=h('button',{type:'button',class:'ai-send',title:'Send'},h('i',{class:'fas fa-paper-plane'}));
-  const stop=h('button',{type:'button',class:'ai-stop',title:'Stop'},h('i',{class:'fas fa-stop'}));
+  const ta=h('textarea',{class:'ai-ta',rows:1,placeholder:'Type a message...'});
+  const send=h('button',{type:'button',class:'ai-send',title:'Send','aria-label':'Send'},h('i',{class:'fas fa-arrow-up'}));
+  const stop=h('button',{type:'button',class:'ai-stop',title:'Stop','aria-label':'Stop'},h('i',{class:'fas fa-stop'}));
   stop.style.display='none';
   stop.addEventListener('click',()=>{ if(AI._stopFn) AI._stopFn(); });
   const autoGrow=()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; };
+  // Re-focusing after every reply would pop the on-screen keyboard back up on phones.
+  const canHover=window.matchMedia && window.matchMedia('(hover:hover)').matches;
   const setSending=(on)=>{
     if(!AI.el) return;
     if(on){ send.disabled=true; ta.disabled=true; send.style.display='none'; stop.style.display='flex'; }
-    else { send.disabled=false; ta.disabled=false; send.style.display='flex'; stop.style.display='none'; AI.el.ta.focus(); }
+    else { send.disabled=false; ta.disabled=false; send.style.display='flex'; stop.style.display='none'; if(canHover) AI.el.ta.focus(); }
   };
-  const aiSetSending=setSending;
-  const sendNow=()=>{ const t=ta.value.trim(); if(t && !AI.sending){ aiSend(t); ta.value=''; autoGrow(); ta.focus(); } };
+  const sendNow=()=>{ const t=ta.value.trim(); if(t && !AI.sending){ aiSend(t); ta.value=''; autoGrow(); } };
   ta.addEventListener('input',autoGrow);
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendNow(); } });
   send.addEventListener('click',sendNow);
-  bar.appendChild(ta); bar.appendChild(send);
-  panel.appendChild(bar);
+  bar.appendChild(ta); bar.appendChild(send); bar.appendChild(stop);
+  chat.appendChild(bar);
 
-  ov.appendChild(panel);
+  ov.appendChild(sidebar);
+  ov.appendChild(backdrop);
+  ov.appendChild(chat);
   document.body.appendChild(ov);
-  AI.el={ov,convs,msgs,suggest,ta,send,dim:setSending};
+  document.body.classList.add('ai-open');
+  AI.el={ov,convs:sideList,msgs,suggest,ta,send,dim:setSending};
   AI.open=true;
-  aiStatusNote(sub);
   if(AI.convs.length && !AI.convs.some(c=>c.id===AI.convId)) AI.convId=AI.convs[0].id;
   aiSelectConversation(AI.convId);
+  aiRefreshConvs();
 }
 
+function aiToggleSidebar(force){
+  if(!AI.el) return;
+  const open = force===undefined ? !AI.el.ov.classList.contains('side-open') : !!force;
+  AI.el.ov.classList.toggle('side-open', open);
+}
+
+// Close through history when #ai is the current entry so Back / Forward stay in
+// sync; the route handler then removes the overlay.
 function aiCloseOverlay(){
+  if(!AI.el) return;
+  if(location.hash === '#ai'){ history.back(); return; }
+  aiRemoveOverlay();
+}
+
+function aiRemoveOverlay(){
   if(!AI.el) return;
   AI.el.ov.remove();
   AI.el=null;
   AI.open=false;
+  document.body.classList.remove('ai-open');
 }
 
 function aiStatusNote(sub){
@@ -2383,15 +2665,18 @@ async function aiRefreshConvs(){
 
 function aiRenderConvs(){
   const row=AI.el.convs; row.innerHTML='';
-  row.appendChild(aiChip('New chat', AI.convId===0, ()=>aiSelectConversation(0)));
-  // Skip empty placeholder chats (0 messages) so the history list stays clean.
-  AI.convs.filter(c=>c.msg_count>0).forEach(c=>{
-    const wrap=h('div',{class:'ai-conv-item'});
-    wrap.appendChild(aiChip(c.title, AI.convId===c.id, ()=>aiSelectConversation(c.id)));
-    const del=h('button',{type:'button',class:'ai-conv-del',title:'Cancel / delete this chat history',onclick:()=>aiDeleteConversation(c.id)});
+  const list=AI.convs.filter(c=>c.msg_count>0);
+  if(!list.length){ row.appendChild(h('div',{class:'ai-sidebar-empty'},'No chats yet.')); return; }
+  list.forEach(c=>{
+    const item=h('div',{class:'ai-sidebar-item'+(AI.convId===c.id?' active':''),title:c.title});
+    const txt=h('span',{class:'ai-sidebar-item-text'},c.title);
+    // The whole row is the tap target; on phones picking a chat also closes the drawer.
+    item.addEventListener('click',()=>{ aiToggleSidebar(false); aiSelectConversation(c.id); });
+    item.appendChild(txt);
+    const del=h('button',{type:'button',class:'ai-sidebar-del',title:'Delete',onclick:(e)=>{e.stopPropagation();aiDeleteConversation(c.id)}});
     del.appendChild(h('i',{class:'fas fa-xmark'}));
-    wrap.appendChild(del);
-    row.appendChild(wrap);
+    item.appendChild(del);
+    row.appendChild(item);
   });
 }
 
@@ -2523,18 +2808,11 @@ function aiBubble(role,text,cards,timestamp,idx){
     b.appendChild(cc);
   }
   w.appendChild(b);
-  if(timestamp){
-    const t=h('div',{class:'ai-time'},h('i',{class:'fas fa-clock'}),aiTimeLabel(timestamp));
-    w.appendChild(t);
-  }
-  if(role!=='error' && typeof idx==='number'){
-    w.appendChild(aiActionRow(b, idx));
-  }
   return w;
 }
 
 function aiShowTyping(){
-  const t=h('div',{class:'ai-msg ai-msg-bot ai-typing'},h('span'),h('span'),h('span'));
+  const t=h('div',{class:'ai-msg ai-bot ai-typing'},h('span'),h('span'),h('span'));
   t.dataset.typing='1';
   AI.el.msgs.appendChild(t);
   AI.el.msgs.scrollTop=AI.el.msgs.scrollHeight;
@@ -2549,8 +2827,10 @@ function aiRenderMsgs(){
   if(AI.msgs.length){
     AI.msgs.forEach((x,i)=>m.appendChild(aiBubble(x.role, x.message, x.cards||[], x.ts, i)));
   } else {
-    // Fresh / empty chat: show a default welcome message, then quick chips.
-    m.appendChild(aiBubble('bot', 'Welcome to MoneyWise! 👋 I can help with your spending, income and balance — and show you how to use every MoneyWise feature. Try "What is my balance?", "How much did I spend on food?", or "How do I add an expense?"'));
+    const welcome=h('div',{class:'ai-welcome'});
+    welcome.appendChild(h('div',{class:'ai-welcome-icon'},'>_'));
+    welcome.appendChild(h('div',{class:'ai-welcome-text'},'Say something to start the conversation.'));
+    m.appendChild(welcome);
   }
   if(!AI.msgs.length){
     AI.el.suggest.innerHTML='';
@@ -2625,17 +2905,19 @@ function aiStreamReveal(idx, full){
   const bots=[...AI.el.msgs.querySelectorAll('.ai-msg.ai-bot')];
   const bubble=bots[bots.length-1];
   if(!bubble) return;
-  const holder=document.createElement('div');
-  holder.className='ai-stream-bot';
+  // Each step re-renders the text, so keep the summary cards aside and put them
+  // back once the full reply is shown.
+  const cards=bubble.querySelector('.ai-cards');
+  const finish=()=>{ bubble.innerHTML=''; bubble.appendChild(aiMdRender(full)); if(cards) bubble.appendChild(cards); };
   let pos=0;
   const step=()=>{
-    if(AI._stop || !AI.el){ bubble.innerHTML=''; bubble.appendChild(aiMdRender(full)); return; }
+    if(AI._stop || !AI.el){ finish(); return; }
     pos += 26;
-    const slice=full.slice(0,pos);
+    if(pos>=full.length){ finish(); AI.el.msgs.scrollTop=AI.el.msgs.scrollHeight; return; }
     bubble.innerHTML='';
-    bubble.appendChild(aiMdRender(slice+(pos<full.length?'▍':'')));
+    bubble.appendChild(aiMdRender(full.slice(0,pos)+'▍'));
     AI.el.msgs.scrollTop=AI.el.msgs.scrollHeight;
-    if(pos<full.length) setTimeout(step, 18);
+    setTimeout(step, 18);
   };
   step();
 }
@@ -4124,11 +4406,18 @@ async function boot(){
     const d = await api('api/auth.php');
     if (d.user) {
       state.user = d.user;
+      if(d.app_version) state.appVersion = d.app_version;
       const hashPage = getPageFromHash();
-      page = hashPage || 'dashboard';
+      page = (hashPage && hashPage !== 'ai') ? hashPage : 'dashboard';
       render();
       try { await refreshAll(); } catch(e) { console.error('refreshAll failed:', e); }
       render();
+      if(hashPage === 'ai'){
+        // Deep link to the chat: put the page underneath first so Back / Close
+        // return to it instead of leaving the app.
+        history.replaceState(null, '', '#'+page);
+        aiOpenOverlay();
+      }
       return;
     }
   } catch (e) {
@@ -4137,19 +4426,26 @@ async function boot(){
   window.location.href = 'signin.php';
 }
 
-window.addEventListener('hashchange', ()=>{
-  if(state.user){
-    const hashPage = getPageFromHash();
-    if(hashPage && hashPage !== page){
-      page = hashPage;
-      render();
-    }
+// Back / Forward (and typed #hashes): the AI chat lives only on the #ai entry,
+// so leaving that entry always closes it.
+function onRouteChange(){
+  if(!state.user) return;
+  const hashPage = getPageFromHash();
+  if(hashPage === 'ai'){
+    if(!AI.el) aiOpenOverlay();
+    return;
   }
-});
+  if(AI.el) aiRemoveOverlay();
+  if(hashPage && hashPage !== page){
+    page = hashPage;
+    render();
+  }
+}
+window.addEventListener('hashchange', onRouteChange);
+window.addEventListener('popstate', onRouteChange);
 
 applyTheme();
 boot();
-
 </script>
 </body>
 </html>

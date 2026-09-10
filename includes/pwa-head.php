@@ -37,6 +37,7 @@
 .mw-ios-tip small{display:block;margin-top:6px;color:#b8b3cc;font-size:12px}
 .mw-ios-tip svg{width:18px;height:18px;vertical-align:-3px;color:#60a5fa}
 .mw-ios-tip-x{position:absolute;top:6px;right:6px;border:0;background:none;color:#b8b3cc;font-size:20px;line-height:1;padding:6px 8px;cursor:pointer}
+.mw-ios-copy{display:block;margin:10px 0 4px;border:0;border-radius:999px;padding:9px 16px;background:#7c3aed;color:#fff;font:600 13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @keyframes mwFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes mwBobDown{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
 @keyframes mwBobUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
@@ -68,6 +69,27 @@ if ('serviceWorker' in navigator) {
     if (document.body) fn(); else document.addEventListener('DOMContentLoaded', fn);
   }
   function hide() { if (banner) banner.hidden = true; }
+
+  // Clipboard API can be unavailable in some iOS browsers; fall back to a hidden input.
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return legacyCopy(text); });
+    }
+    return Promise.resolve(legacyCopy(text));
+  }
+  function legacyCopy(text) {
+    var input = document.createElement('input');
+    input.value = text;
+    input.setAttribute('readonly', '');
+    input.style.cssText = 'position:fixed;top:0;opacity:0';
+    document.body.appendChild(input);
+    input.select();
+    input.setSelectionRange(0, text.length);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    input.remove();
+    return ok;
+  }
 
   function install() {
     if (promptEvent) {
@@ -102,15 +124,20 @@ if ('serviceWorker' in navigator) {
     if (!tip) {
       // In-app browsers (Instagram, Facebook, Google app) have no Add to Home Screen.
       var inAppBrowser = !/Safari\//.test(ua) || /GSA\/|FBAN|FBAV|Instagram/.test(ua);
-      var otherBrowser = /CriOS|EdgiOS|FxiOS/.test(ua); // Share lives in the top address bar
+      var otherBrowser = /CriOS|EdgiOS|FxiOS/.test(ua);
       var hint = '<small>Not in the list? Scroll to the bottom, tap <b>Edit Actions</b> and add it.</small>';
       var place, html;
       if (inAppBrowser) {
         place = 'mw-top mw-noarrow';
         html = 'Open this page in <b>Safari</b> first (⋯ menu → Open in Safari), then tap Install again.';
       } else if (otherBrowser) {
-        place = 'mw-top';
-        html = 'Tap <b>Share</b> ' + SHARE_ICON + ' in the address bar, then <b>Add to Home Screen</b>.' + hint;
+        // Chrome's Share button hides when its address bar collapses or is moved to the
+        // bottom, so steer to Safari (most reliable) and keep Chrome's path as a fallback.
+        place = 'mw-top mw-noarrow';
+        html = '<b>Easiest: install from Safari.</b> Copy the link, paste it into Safari, then tap Share → Add to Home Screen.'
+          + '<button type="button" class="mw-ios-copy">Copy link</button>'
+          + '<small>Or in Chrome: scroll up until the address bar shows, tap <b>Share</b> ' + SHARE_ICON
+          + ' at its right end (the bar may be at the bottom), then <b>Add to Home Screen</b>.</small>' + hint;
       } else {
         place = 'mw-bottom';
         html = 'Tap <b>Share</b> ' + SHARE_ICON + ' below (or <b>⋯</b> → Share), then <b>Add to Home Screen</b>.' + hint;
@@ -123,6 +150,16 @@ if ('serviceWorker' in navigator) {
         tip.hidden = true;
         if (banner) banner.hidden = false;
       });
+      var copyBtn = tip.querySelector('.mw-ios-copy');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+          var link = location.origin + '/';
+          copyText(link).then(function (ok) {
+            // If copying is blocked, show the link itself so it can be selected by hand.
+            copyBtn.textContent = ok ? 'Link copied ✓ Now open Safari' : link;
+          });
+        });
+      }
       document.body.appendChild(tip);
     }
     tip.hidden = false;

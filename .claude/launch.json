@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "moneywise-php",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8765"],
+      "port": 8765
+    }
+  ]
+}

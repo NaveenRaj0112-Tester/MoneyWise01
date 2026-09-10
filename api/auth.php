@@ -13,7 +13,7 @@ switch ($action) {
 
     // GET / GET ?action=session  -> current logged-in user (or null)
     case 'session':
-        json_out(['ok' => true, 'user' => current_user()]);
+        json_out(['ok' => true, 'user' => current_user(), 'app_version' => defined('APP_VERSION') ? APP_VERSION : '1.0.0']);
 
     case 'login':
         $email = scalar_string(param('email', ''), 150);
