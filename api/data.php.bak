@@ -17,6 +17,18 @@
  *   -> { ok, deleted: { transactions, categories, salaries, salary_history, events, ai_conversations } }
  */
 declare(strict_types=1);
+
+// Read the action BEFORE require_login() so body()'s static cache doesn't eat it.
+$rawBody = file_get_contents('php://input');
+$bodyData = json_decode($rawBody ?: '', true);
+$action = '';
+if (is_array($bodyData) && isset($bodyData['action'])) {
+    $action = trim((string)$bodyData['action']);
+}
+if ($action === '' && isset($_POST['action'])) {
+    $action = trim((string)$_POST['action']);
+}
+
 require_once __DIR__ . '/config.php';
 $u = require_login();
 
@@ -24,7 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_out(['ok' => false, 'error' => 'Method not allowed.'], 405);
 }
 
-$action = scalar_string(param('action', ''));
 if ($action !== 'delete_all') {
     json_out(['ok' => false, 'error' => 'Unknown action.'], 400);
 }

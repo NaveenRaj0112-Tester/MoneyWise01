@@ -36,7 +36,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $st = db()->prepare('INSERT INTO users (name, gender, email, password, is_admin) VALUES (?, ?, ?, ?, 0)');
             $st->execute([$name, 'male', $email, password_hash($pass, PASSWORD_DEFAULT)]);
-            header('Location: signin.php?signup=1');
+            $id = (int)db()->lastInsertId();
+            session_regenerate_id(true);
+            $_SESSION['user_id']  = $id;
+            $_SESSION['auth_time'] = microtime(true);
+            header('Location: index.php');
             exit;
         }
     }

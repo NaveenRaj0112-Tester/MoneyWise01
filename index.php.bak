@@ -21,14 +21,14 @@ $logov = @filemtime(__DIR__ . '/Mlogo/MoneywiseLOGO.png');
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link rel="stylesheet" href="assets/app.css?v=<?php echo $cssv; ?>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#7c3aed">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MoneyWise">
-<link rel="apple-touch-icon" href="assets/pwa-icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/pwa-icons/icon-192.png">
-<link rel="icon" type="image/svg+xml" href="assets/pwa-icons/icon.svg">
+<link rel="apple-touch-icon" href="../assets/pwa-icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../assets/pwa-icons/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="../assets/pwa-icons/icon.svg">
 <meta name="description" content="Smart expense tracker with AI assistant, reports, and budget management">
 <meta name="mobile-web-app-capable" content="yes">
 </head>
@@ -873,6 +873,59 @@ async function logout() {
   page = 'login'; authPage = 'login'; location.hash=''; render();
 }
 
+function grmDeleteAllDataConfirm(){
+  const overlay=h('div',{class:'modal-overlay'});
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
+  const sheet=h('div',{class:'modal-sheet'});
+  sheet.appendChild(h('div',{class:'modal-handle'}));
+  sheet.appendChild(h('div',{class:'modal-title'},'Delete All Data'));
+  const warn=h('div',{style:'background:#fef2f2;border:1px solid #fecaca;border-radius:var(--r-lg);padding:14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start'});
+  warn.appendChild(h('i',{class:'fas fa-triangle-exclamation',style:'color:#dc2626;font-size:18px;margin-top:2px'}));
+  const wt=h('div',{});
+  wt.appendChild(h('div',{style:'font-size:13px;font-weight:800;color:#dc2626'},'This cannot be undone'));
+  wt.appendChild(h('div',{style:'font-size:12px;color:var(--mid);margin-top:4px;line-height:1.5'},'All your transactions, income, expenses, categories, events, AI chat history and salary records will be permanently deleted.'));
+  warn.appendChild(wt);
+  sheet.appendChild(warn);
+  const note=h('div',{style:'font-size:12px;color:var(--light);margin-bottom:18px;line-height:1.5'},'Your account will remain active. Only your data will be removed.');
+  sheet.appendChild(note);
+  const inputLabel=h('div',{style:'font-size:12px;color:var(--mid);margin-bottom:6px'},'Type DELETE to confirm:');
+  sheet.appendChild(inputLabel);
+  const confirmInput=h('input',{type:'text',class:'inp',placeholder:'Type DELETE',style:'text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:16px'});
+  sheet.appendChild(confirmInput);
+  const btnRow=h('div',{style:'display:flex;gap:10px'});
+  const cancelBtn=h('button',{class:'btn btn-s',style:'flex:1'},'Cancel');
+  cancelBtn.addEventListener('click',()=>overlay.remove());
+  const delBtn=h('button',{class:'btn btn-d',style:'flex:1;opacity:.5;cursor:not-allowed'},h('i',{class:'fas fa-trash'}),' Delete Everything');
+  delBtn.disabled=true;
+  confirmInput.addEventListener('input',()=>{
+    const v=confirmInput.value.trim().toUpperCase();
+    delBtn.disabled=(v!=='DELETE');
+    delBtn.style.opacity=delBtn.disabled?'0.5':'1';
+    delBtn.style.cursor=delBtn.disabled?'not-allowed':'pointer';
+  });
+  delBtn.addEventListener('click',async()=>{
+    if(delBtn.disabled) return;
+    delBtn.disabled=true; delBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Deleting…';
+    try{
+      const d=await api('api/data.php',{method:'POST',body:JSON.stringify({action:'delete_all'})});
+      overlay.remove();
+      if(d.ok){
+        state.txs=[]; state.mySalary=null; state.employees=[]; state.history=[]; state.years=[]; state.clearedTxs=new Set(); state.dashBalanceCleared=false;
+        calcExpr=''; calcResult=''; calcError=''; calcOp=''; calcStartNew=false;
+        toast('All data deleted successfully.');
+        render();
+      } else {
+        toast(d.error||'Failed to delete data. Please try again.');
+      }
+    }catch(e){ overlay.remove(); toast('Failed to delete data. Please try again.'); }
+  });
+  btnRow.appendChild(cancelBtn); btnRow.appendChild(delBtn);
+  sheet.appendChild(btnRow);
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+  confirmInput.focus();
+}
+
 function toast(msg) {
   const t = h('div',{class:'al al-s fade',style:'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:300;width:90%;max-width:390px;box-shadow:0 4px 20px rgba(22,163,74,.2)'},h('i',{class:'fas fa-circle-check'}),' '+msg);
   document.body.appendChild(t);
@@ -1400,7 +1453,7 @@ function buildDashboard(){
   const tl=h('div',{class:'tx-list'});
   const shRight=h('div',{class:'sh-right'});
   const viewAllLink=h('span',{class:'view-all-link'},'View all →');
-  viewAllLink.addEventListener('click',()=>{ setPage('tx-history'); render(); });
+  viewAllLink.addEventListener('click',()=>{ page='tx-history'; render(); });
   shRight.appendChild(viewAllLink);
   shRight.appendChild(h('div',{class:'sh-sub'},fmtDate(toDay())));
   shRight.appendChild(h('button',{type:'button',class:'btn btn-xs clear-ui',title:'Hide the entries shown here (records stay in the database)',onclick:()=>{
@@ -1451,9 +1504,9 @@ function buildAddTx(type){
   pg.appendChild(phdr);
   const tog=h('div',{class:'tab-tog'});
   const expBtn=h('button',{class:type==='expense'?'act':''},'Expenses');
-  expBtn.addEventListener('click',()=>{setPage('add-expense');render();});
+  expBtn.addEventListener('click',()=>{page='add-expense';render();});
   const incBtn=h('button',{class:type==='income'?'act':''},'Income');
-  incBtn.addEventListener('click',()=>{setPage('add-income');render();});
+  incBtn.addEventListener('click',()=>{page='add-income';render();});
   tog.appendChild(expBtn); tog.appendChild(incBtn); pg.appendChild(tog);
   const errDiv=h('div',{}); pg.appendChild(errDiv);
   const fc=h('div',{class:'fc'});
@@ -1998,7 +2051,7 @@ function buildTransactionHistory(){
   const pg=h('div',{class:'page fade'});
   const phdr=h('div',{class:'page-hdr'});
   const bb=h('button',{class:'back-btn'},h('i',{class:'fas fa-chevron-left'}));
-  bb.addEventListener('click',()=>{ setPage('dashboard'); render(); });
+  bb.addEventListener('click',()=>{ page='dashboard'; render(); });
   phdr.appendChild(bb);
   phdr.appendChild(h('h2',{},'Transaction History'));
   pg.appendChild(phdr);
@@ -2263,11 +2316,11 @@ function buildSettings(){
   const accSection=h('div',{class:'settings-section'});
   accSection.appendChild(h('div',{class:'settings-section-title'},'Account'));
   const accCard=h('div',{class:'settings-card'});
-  accCard.appendChild(settingsRow('fa-user', 'sri-purple', 'My Profile', state.user.name+' · '+state.user.email, ()=>{ profileTab='profile'; setPage('profile'); render(); }));
+  accCard.appendChild(settingsRow('fa-user', 'sri-purple', 'My Profile', state.user.name+' · '+state.user.email, ()=>{ profileTab='profile'; page='profile'; render(); }));
   accCard.appendChild(settingsRow('fa-robot', 'sri-purple', 'AI Assistant', 'Ask questions about your spending & income', aiOpenOverlay));
   accCard.appendChild(buildThemeSettingsRow());
-  accCard.appendChild(settingsRow('fa-clock-rotate-left', 'sri-orange', 'Transaction History', 'Search & filter all your transactions', ()=>{ setPage('tx-history'); render(); }));
-  accCard.appendChild(settingsRow('fa-key', 'sri-green', 'Change Password', 'Update your password', ()=>{ profileTab='password'; setPage('profile'); render(); }));
+  accCard.appendChild(settingsRow('fa-clock-rotate-left', 'sri-orange', 'Transaction History', 'Search & filter all your transactions', ()=>{ page='tx-history'; render(); }));
+  accCard.appendChild(settingsRow('fa-key', 'sri-green', 'Change Password', 'Update your password', ()=>{ profileTab='password'; page='profile'; render(); }));
   accCard.appendChild(settingsRow('fa-sign-out-alt', 'sri-red', 'Logout', 'Sign out of your account', logout));
   accCard.appendChild(settingsRow('fa-trash-alt', 'sri-red', 'Delete All Data', 'Permanently remove all transactions, events, AI chats & categories', grmDeleteAllDataConfirm));
   accSection.appendChild(accCard);
@@ -2311,28 +2364,38 @@ function aiOpenOverlay(){
   if(AI.el) return;
   const ov=h('div',{class:'ai-overlay'});
   ov.addEventListener('click',e=>{ if(e.target===ov) aiCloseOverlay(); });
-  const panel=h('div',{class:'ai-panel'});
 
-  const hdr=h('div',{class:'ai-hdr'});
-  const left=h('div',{class:'ai-hdr-l'});
-  left.appendChild(h('div',{class:'ai-hdr-t'},h('i',{class:'fas fa-robot'}),' AI Assistant'));
-  const sub=h('div',{class:'ai-hdr-s'});
-  sub.textContent='Ask about your spending & income, or how to use MoneyWise';
-  left.appendChild(sub);
-  const newBtn=h('button',{type:'button',class:'ai-hbtn',title:'New chat'},h('i',{class:'fas fa-plus'}));
+  // Sidebar
+  const sidebar=h('div',{class:'ai-sidebar'});
+  const sideHdr=h('div',{class:'ai-sidebar-hdr'});
+  const newBtn=h('button',{type:'button',class:'ai-new-chat'},h('i',{class:'fas fa-plus'}),' New chat');
   newBtn.addEventListener('click',aiNewConversation);
-  const closeBtn=h('button',{type:'button',class:'ai-hbtn',title:'Close'},h('i',{class:'fas fa-xmark'}));
-  closeBtn.addEventListener('click',aiCloseOverlay);
-  hdr.appendChild(left); hdr.appendChild(newBtn); hdr.appendChild(closeBtn);
-  panel.appendChild(hdr);
+  sideHdr.appendChild(newBtn);
+  sidebar.appendChild(sideHdr);
+  const sideLabel=h('div',{class:'ai-sidebar-label'},'History');
+  sidebar.appendChild(sideLabel);
+  const sideList=h('div',{class:'ai-sidebar-list'});
+  sidebar.appendChild(sideList);
 
-  const convs=h('div',{class:'ai-convs'}); panel.appendChild(convs);
-  const msgs=h('div',{class:'ai-msgs'}); panel.appendChild(msgs);
-  const suggest=h('div',{class:'ai-suggest'}); panel.appendChild(suggest);
+  // Main chat area
+  const chat=h('div',{class:'ai-chat'});
+  const chatHdr=h('div',{class:'ai-chat-hdr'});
+  chatHdr.appendChild(h('div',{class:'ai-chat-title'},'Money Wise'));
+  const status=h('div',{class:'ai-chat-status'},h('div',{class:'ai-chat-status-dot'}),' online');
+  chatHdr.appendChild(status);
+  const closeBtn=h('button',{type:'button',class:'ai-chat-close',title:'Close'},h('i',{class:'fas fa-xmark'}));
+  closeBtn.addEventListener('click',aiCloseOverlay);
+  chatHdr.appendChild(closeBtn);
+  chat.appendChild(chatHdr);
+
+  const msgs=h('div',{class:'ai-msgs'});
+  chat.appendChild(msgs);
+  const suggest=h('div',{class:'ai-suggest'});
+  chat.appendChild(suggest);
 
   const bar=h('div',{class:'ai-input'});
-  const ta=h('textarea',{class:'ai-ta',rows:1,placeholder:'Ask about your money…'});
-  const send=h('button',{type:'button',class:'ai-send',title:'Send'},h('i',{class:'fas fa-paper-plane'}));
+  const ta=h('textarea',{class:'ai-ta',rows:1,placeholder:'Type a message...'});
+  const send=h('button',{type:'button',class:'ai-send',title:'Send'},h('i',{class:'fas fa-arrow-up'}));
   const stop=h('button',{type:'button',class:'ai-stop',title:'Stop'},h('i',{class:'fas fa-stop'}));
   stop.style.display='none';
   stop.addEventListener('click',()=>{ if(AI._stopFn) AI._stopFn(); });
@@ -2348,13 +2411,13 @@ function aiOpenOverlay(){
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendNow(); } });
   send.addEventListener('click',sendNow);
   bar.appendChild(ta); bar.appendChild(send);
-  panel.appendChild(bar);
+  chat.appendChild(bar);
 
-  ov.appendChild(panel);
+  ov.appendChild(sidebar);
+  ov.appendChild(chat);
   document.body.appendChild(ov);
-  AI.el={ov,convs,msgs,suggest,ta,send,dim:setSending};
+  AI.el={ov,convs:sideList,msgs,suggest,ta,send,dim:setSending};
   AI.open=true;
-  aiStatusNote(sub);
   if(AI.convs.length && !AI.convs.some(c=>c.id===AI.convId)) AI.convId=AI.convs[0].id;
   aiSelectConversation(AI.convId);
 }
@@ -2391,15 +2454,15 @@ async function aiRefreshConvs(){
 
 function aiRenderConvs(){
   const row=AI.el.convs; row.innerHTML='';
-  row.appendChild(aiChip('New chat', AI.convId===0, ()=>aiSelectConversation(0)));
-  // Skip empty placeholder chats (0 messages) so the history list stays clean.
   AI.convs.filter(c=>c.msg_count>0).forEach(c=>{
-    const wrap=h('div',{class:'ai-conv-item'});
-    wrap.appendChild(aiChip(c.title, AI.convId===c.id, ()=>aiSelectConversation(c.id)));
-    const del=h('button',{type:'button',class:'ai-conv-del',title:'Cancel / delete this chat history',onclick:()=>aiDeleteConversation(c.id)});
+    const item=h('div',{class:'ai-sidebar-item'+(AI.convId===c.id?' active':'')});
+    const txt=h('span',{class:'ai-sidebar-item-text'},c.title);
+    txt.addEventListener('click',()=>aiSelectConversation(c.id));
+    item.appendChild(txt);
+    const del=h('button',{type:'button',class:'ai-sidebar-del',title:'Delete',onclick:(e)=>{e.stopPropagation();aiDeleteConversation(c.id)}});
     del.appendChild(h('i',{class:'fas fa-xmark'}));
-    wrap.appendChild(del);
-    row.appendChild(wrap);
+    item.appendChild(del);
+    row.appendChild(item);
   });
 }
 
@@ -2531,13 +2594,6 @@ function aiBubble(role,text,cards,timestamp,idx){
     b.appendChild(cc);
   }
   w.appendChild(b);
-  if(timestamp){
-    const t=h('div',{class:'ai-time'},h('i',{class:'fas fa-clock'}),aiTimeLabel(timestamp));
-    w.appendChild(t);
-  }
-  if(role!=='error' && typeof idx==='number'){
-    w.appendChild(aiActionRow(b, idx));
-  }
   return w;
 }
 
@@ -2557,8 +2613,11 @@ function aiRenderMsgs(){
   if(AI.msgs.length){
     AI.msgs.forEach((x,i)=>m.appendChild(aiBubble(x.role, x.message, x.cards||[], x.ts, i)));
   } else {
-    // Fresh / empty chat: show a default welcome message, then quick chips.
-    m.appendChild(aiBubble('bot', 'Welcome to MoneyWise! 👋 I can help with your spending, income and balance — and show you how to use every MoneyWise feature. Try "What is my balance?", "How much did I spend on food?", or "How do I add an expense?"'));
+    // Fresh / empty chat: show welcome with typing cursor icon
+    const welcome=h('div',{class:'ai-welcome'});
+    welcome.appendChild(h('div',{class:'ai-welcome-icon'},'>_'));
+    welcome.appendChild(h('div',{class:'ai-welcome-text'},'Say something to start the conversation.'));
+    m.appendChild(welcome);
   }
   if(!AI.msgs.length){
     AI.el.suggest.innerHTML='';
@@ -3017,7 +3076,7 @@ function showSalaryModal(emp){
       await api('api/salary.php', { method:'POST', body: JSON.stringify({ action:'set', userId:emp.id, amount:amt, month:selMonth, year:selYear }) });
       overlay.remove();
       await refreshAll();
-      setPage('settings'); settingsPage='salary-management'; render();
+      page='settings'; settingsPage='salary-management'; render();
       toast('Salary updated for '+emp.name+'!');
     } catch (err) {
       errD.innerHTML=''; errD.appendChild(h('div',{class:'al al-e'},h('i',{class:'fas fa-circle-exclamation'}),' '+err.message));
@@ -3138,7 +3197,7 @@ function buildEventsList(){
   const pg = h('div',{class:'page fade'});
   const phdr = h('div',{class:'page-hdr'});
   const bb = h('button',{class:'back-btn'},h('i',{class:'fas fa-chevron-left'}));
-  bb.addEventListener('click',()=>{ setPage('dashboard'); render(); });
+  bb.addEventListener('click',()=>{ page='dashboard'; render(); });
   phdr.appendChild(bb); phdr.appendChild(h('h2',{},'Event Expenses'));
   pg.appendChild(phdr);
 

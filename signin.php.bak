@@ -57,10 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <p>Sign in to your account</p>
     </div>
 
-    <?php if (!empty($_GET['signup'])): ?>
-      <div class="al al-s"><i class="fas fa-circle-check"></i> Account created successfully! Please sign in.</div>
-    <?php endif; ?>
-
     <?php if ($error !== ''): ?>
       <div class="al al-e"><i class="fas fa-circle-exclamation"></i> <?= htmlspecialchars($error) ?></div>
     <?php endif; ?>

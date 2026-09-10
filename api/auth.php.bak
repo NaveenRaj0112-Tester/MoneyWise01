@@ -87,10 +87,17 @@ switch ($action) {
         $st = db()->prepare('INSERT INTO users (name, gender, email, password, is_admin) VALUES (?, ?, ?, ?, 0)');
         $st->execute([$name, $gender, $email, password_hash($pass, PASSWORD_DEFAULT)]);
 
+        $id = (int)db()->lastInsertId();
+        session_regenerate_id(true);
+        $_SESSION['user_id']  = $id;
+        $_SESSION['auth_time'] = microtime(true);
         $res = [
             'ok'   => true,
-            'message' => 'Account created. Please sign in.',
+            'user' => ['id' => $id, 'name' => $name, 'gender' => $gender, 'email' => $email, 'is_admin' => 0],
         ];
+        if (param('want_token', '0')) {
+            $res['token'] = issue_token($id);
+        }
         json_out($res, 201);
 
     case 'logout':

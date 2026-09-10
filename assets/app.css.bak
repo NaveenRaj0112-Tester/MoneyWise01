@@ -59,8 +59,7 @@ select.inp{appearance:none;-webkit-appearance:none;cursor:pointer}
 .al-s{background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0}
 .al-w{background:#fffbeb;color:#d97706;border:1.5px solid #fde68a}
 .page{padding:18px 16px}
-.page.calc-page{padding-bottom:0}
-.page-hdr{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.page-hdr{display:flex;align-items:center;gap:12px;margin-bottom:18px}
 .page-hdr h2{font-family:var(--fd);font-size:19px;font-weight:700}
 .back-btn{width:36px;height:36px;background:#fff;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--p1);box-shadow:0 2px 8px rgba(124,58,237,.12);cursor:pointer;border:none;flex-shrink:0}
 .dash-hdr{background:var(--grad);border-radius:var(--r-xl);padding:26px 22px 30px;color:#fff;margin-bottom:18px;position:relative;overflow:hidden}
@@ -351,15 +350,15 @@ button,select,input,textarea,a{touch-action:manipulation;-webkit-tap-highlight-c
 .event-total.over,.event-budget.over{color:#dc2626}
 .event-budget{font-size:11.5px;color:#16a34a;font-weight:700;margin-top:2px}
 .event-budget.over{color:#dc2626}
-.event-acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
-.event-acts .btn{width:100%;margin-top:0;border-radius:12px;padding:6px 4px;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap}
-.event-acts .btn i{margin-right:4px;font-size:10px}
-.ev-edit{background:#f0f0ff;color:#444}
-.ev-edit:hover{background:#e4e4f7}
-.ev-del{background:#7f1d1d;color:#fca5a5}
-.ev-del:hover{background:#6b1616}
-.ev-pdf{background:#fef3c7;color:#c2410c}
-.ev-pdf:hover{background:#fde68a}
+.event-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.event-acts .btn{width:100%;margin-top:0;border-radius:var(--r-md);padding:8px 6px;font-size:11.5px;font-weight:700;justify-content:center;white-space:nowrap}
+.event-acts .btn i{margin-right:5px}
+.ev-edit{background:var(--p5);color:var(--p1)}
+.ev-edit:hover{background:var(--p4)}
+.ev-del{background:#fef2f2;color:#dc2626}
+.ev-del:hover{background:#fee2e2}
+.ev-pdf{background:#fff7ed;color:#d97706}
+.ev-pdf:hover{background:#ffedd5}
 .event-detail{background:var(--grad);border-radius:var(--r-xl);padding:20px;color:#fff;margin-bottom:16px}
 .event-detail-name{font-family:var(--fd);font-size:19px;font-weight:700;margin-bottom:4px}
 .event-detail .event-type{background:rgba(255,255,255,.18);color:#fff;margin-bottom:12px;display:inline-block}
@@ -407,20 +406,29 @@ button,select,input,textarea,a{touch-action:manipulation;-webkit-tap-highlight-c
 
 /* The .app shell is capped at 430px, so the calculator stays fully contained in
    its module and never overflows. Compact on desktop, natural on mobile. */
-.calc-card{padding:10px;background:transparent;box-shadow:none;border:none;width:100%;box-sizing:border-box}
-.calc-disp{padding:4px 6px 14px;text-align:right;min-height:70px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;overflow:hidden;background:transparent;border:0}
-.calc-expr{font-family:var(--fd);font-size:clamp(14px,4vw,18px);font-weight:600;color:var(--light);max-width:100%;word-break:break-all;line-height:1.1;white-space:nowrap}
-.calc-res{font-family:var(--fd);font-size:clamp(28px,10vw,40px);font-weight:400;color:var(--dark);max-width:100%;word-break:break-all;line-height:1.05;min-height:46px;display:flex;align-items:center;justify-content:flex-end}
+.calc-card{padding:14px;background:transparent;box-shadow:none;border:none}
+.calc-disp{padding:4px 6px 18px;text-align:right;min-height:88px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;overflow:hidden;background:transparent;border:0}
+.calc-expr{font-family:var(--fd);font-size:22px;font-weight:600;color:var(--light);max-width:100%;word-break:break-all;line-height:1.1;white-space:nowrap}
+.calc-res{font-family:var(--fd);font-size:52px;font-weight:400;color:var(--dark);max-width:100%;word-break:break-all;line-height:1.05;min-height:56px;display:flex;align-items:center;justify-content:flex-end}
 .calc-res.err{color:#e8291c}
-.calc-pad{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(6px,2vw,10px);width:100%}
-.calc-key{aspect-ratio:1/1;border-radius:50%;border:none;background:#2d2040;color:#fff;font-family:var(--fd);font-size:clamp(16px,5vw,22px);font-weight:400;cursor:pointer;transition:filter var(--tr),transform var(--tr),background var(--tr);touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;user-select:none}
+.calc-pad{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.calc-key{aspect-ratio:1/1;border-radius:50%;border:none;background:var(--calc-num,#333);color:var(--calc-num-txt,#fff);font-family:var(--fd);font-size:26px;font-weight:400;cursor:pointer;transition:filter var(--tr),transform var(--tr),background var(--tr);touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;user-select:none}
 .calc-key:hover{filter:brightness(1.08);transform:none}
 .calc-key:active{filter:brightness(.7);transform:scale(.94)}
 .calc-key:focus-visible{outline:2px solid var(--p2);outline-offset:2px}
 .calc-0{grid-column:span 2;border-radius:999px;aspect-ratio:auto}
-.calc-key.k-fn{background:var(--p5);color:var(--p1);font-size:clamp(14px,4.5vw,20px)}
-.calc-key.k-op,.calc-key.k-eq{background:var(--p1);color:#fff;font-size:clamp(18px,6vw,26px)}
-.calc-key.k-op.act{background:#fff;color:var(--p1)}
+.calc-key.k-fn{background:var(--calc-fn,#a5a5a5);color:var(--calc-fn-txt,#000);font-size:24px}
+.calc-key.k-op,.calc-key.k-eq{background:var(--calc-op,#fc9d01);color:#fff;font-size:30px}
+.calc-key.k-op.act{background:#fff;color:#fc9d01}
+
+@media (max-width:360px){
+  .calc-card{padding:10px}
+  .calc-disp{min-height:76px;padding:2px 4px 14px}
+  .calc-res{font-size:44px;min-height:48px}
+  .calc-expr{font-size:18px}
+  .calc-pad{gap:10px}
+  .calc-key{font-size:22px}
+}
 
 /* ─── AI Financial Assistant ─────────────────────────────────────────────────── */
 /* Floating entry button (above the bottom nav), then a full-height chat overlay
@@ -579,16 +587,13 @@ button,select,input,textarea,a{touch-action:manipulation;-webkit-tap-highlight-c
 [data-theme="dark"] .upi-fallback{background:#3a3322;color:#fcd34d}
 [data-theme="dark"] .settings-row-icon.sri-orange{background:#3a3322;color:#fbbf24}
 [data-theme="dark"] .sri-green{background:#16301f;color:#4ade80}
-[data-theme="dark"] .sri-red,.emp-del,.al-e{background:#3a1f26;color:#f87171}
-[data-theme="dark"] .ev-del{background:#450a0a;color:#fca5a5}
+[data-theme="dark"] .sri-red,.ev-del,.emp-del,.al-e{background:#3a1f26;color:#f87171}
 [data-theme="dark"] .tx-act.del{background:transparent;color:#f87171}
 [data-theme="dark"] .tx-ic.income,.al-s{background:#16301f;color:#4ade80}
 [data-theme="dark"] .tx-ic.expense{background:#3a1f26;color:#f87171}
 [data-theme="dark"] .status-badge.completed{background:#16301f;color:#4ade80}
-[data-theme="dark"] .sh-clear{background:#3a1f26;color:#f87171}
-[data-theme="dark"] .ev-edit{background:#2a2548;color:#a5b4fc}
-[data-theme="dark"] .ev-pdf{background:#422006;color:#fbbf24}
-[data-theme="dark"] .pay-method-badge,.history-period,.event-type,.emp-salary-badge{background:var(--surface-2);color:var(--p3)}
+[data-theme="dark"] .sh-clear,.ev-del{background:#3a1f26;color:#f87171}
+[data-theme="dark"] .pay-method-badge,.history-period,.event-type,.ev-edit,.emp-salary-badge{background:var(--surface-2);color:var(--p3)}
 
 /* ─── Theme toggle (reference pill: blue border, dark track, orange gloss knob) ── */
 .mw-theme-btn{--tb-w:46px;--tb-h:25px;position:relative;flex-shrink:0;width:var(--tb-w);height:var(--tb-h);display:inline-flex;align-items:center;border-radius:999px;border:2px solid #5aa7f8;background:#16243b;cursor:pointer;padding:0;transition:box-shadow var(--tr);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
