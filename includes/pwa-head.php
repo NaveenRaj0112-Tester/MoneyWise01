@@ -18,23 +18,28 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/pwa-icons/favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/pwa-icons/icon-192.png?v=2">
 <style>
-/* Top of screen: the bottom nav and AI button already occupy the bottom. */
-.mw-install{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:180;display:flex;align-items:center;gap:10px;padding:8px 6px 8px 10px;width:max-content;max-width:calc(100% - 24px);background:#fff;border-radius:999px;box-shadow:0 8px 28px rgba(124,58,237,.28);font:600 13px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1e1b2e;animation:mwInstallIn .3s ease}
-.mw-install[hidden],.mw-ios-sheet[hidden]{display:none}
+/* In normal page flow at the top, so it never covers the sign-in card, bottom nav or AI button. */
+.mw-install{position:relative;z-index:180;display:flex;align-items:center;gap:10px;margin:12px auto 0;padding:8px 6px 8px 10px;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;background:#fff;border-radius:999px;box-shadow:0 8px 28px rgba(124,58,237,.28);font:600 13px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1e1b2e;animation:mwFadeIn .3s ease}
+.mw-install[hidden],.mw-ios-tip[hidden]{display:none}
 .mw-install img{width:30px;height:30px;border-radius:8px;flex-shrink:0}
 .mw-install-go{border:0;border-radius:999px;padding:9px 16px;background:#7c3aed;color:#fff;font:inherit;cursor:pointer;white-space:nowrap}
 .mw-install-x{border:0;background:none;color:#8b85a0;font-size:20px;line-height:1;padding:4px 8px;cursor:pointer}
-@keyframes mwInstallIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
-/* iOS has no install prompt API, so iPhone/iPad users get Add to Home Screen steps. */
-.mw-ios-sheet{position:fixed;inset:0;z-index:260;display:flex;align-items:flex-end;justify-content:center;background:rgba(30,27,46,.5);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1e1b2e}
-.mw-ios-card{width:100%;max-width:430px;box-sizing:border-box;background:#fff;border-radius:22px 22px 0 0;padding:22px 22px calc(22px + env(safe-area-inset-bottom))}
-.mw-ios-card h3{margin:0 0 2px;font-size:17px}
-.mw-ios-card p{margin:0 0 12px;color:#6b6585}
-.mw-ios-card ol{margin:0;padding:0;list-style:none;counter-reset:mwstep}
-.mw-ios-card li{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #f0ebff}
-.mw-ios-card li::before{counter-increment:mwstep;content:counter(mwstep);flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#ede9fe;color:#7c3aed;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
-.mw-ios-card svg{width:22px;height:22px;flex-shrink:0;color:#007aff}
-.mw-ios-ok{margin-top:12px;width:100%;border:0;border-radius:999px;padding:12px;background:#7c3aed;color:#fff;font:600 15px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer}
+/* iOS has no install API: a hint that stays on screen and points at the browser's Share button. */
+.mw-ios-tip{position:fixed;left:12px;right:12px;z-index:260;max-width:360px;margin:0 auto;box-sizing:border-box;padding:14px 40px 14px 16px;background:#1e1b2e;color:#fff;border-radius:16px;box-shadow:0 12px 32px rgba(30,27,46,.35);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mw-ios-tip::after{content:'';position:absolute;width:16px;height:16px;background:#1e1b2e;transform:rotate(45deg)}
+.mw-ios-tip.mw-bottom{bottom:calc(16px + env(safe-area-inset-bottom));animation:mwFadeIn .25s ease,mwBobDown 1.6s ease-in-out .3s infinite}
+.mw-ios-tip.mw-bottom::after{bottom:-7px;left:calc(50% - 8px)}
+.mw-ios-tip.mw-top{top:calc(14px + env(safe-area-inset-top));animation:mwFadeIn .25s ease,mwBobUp 1.6s ease-in-out .3s infinite}
+.mw-ios-tip.mw-top::after{top:-7px;right:24px}
+.mw-ios-tip.mw-noarrow{animation:mwFadeIn .25s ease}
+.mw-ios-tip.mw-noarrow::after{display:none}
+.mw-ios-tip b{color:#c4b5fd}
+.mw-ios-tip small{display:block;margin-top:6px;color:#b8b3cc;font-size:12px}
+.mw-ios-tip svg{width:18px;height:18px;vertical-align:-3px;color:#60a5fa}
+.mw-ios-tip-x{position:absolute;top:6px;right:6px;border:0;background:none;color:#b8b3cc;font-size:20px;line-height:1;padding:6px 8px;cursor:pointer}
+@keyframes mwFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes mwBobDown{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@keyframes mwBobUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 </style>
 <script>
 if ('serviceWorker' in navigator) {
@@ -46,15 +51,15 @@ if ('serviceWorker' in navigator) {
 
 // "Install MoneyWise" banner.
 // Android/desktop Chrome: fires beforeinstallprompt only when installable and not installed.
-// iOS: no install API exists, so the banner opens Add to Home Screen instructions instead.
+// iOS: websites can't install themselves (Apple provides no API), so Install shows a hint
+// pointing at the browser's Share button -> Add to Home Screen.
 (function () {
   var ua = navigator.userAgent;
   var isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-  var promptEvent = null, banner = null, sheet = null;
+  var promptEvent = null, banner = null, tip = null;
 
   var SHARE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 10H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1"/></svg>';
-  var ADD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
 
   function dismissed() {
     try { return !!sessionStorage.getItem('mwInstallDismissed'); } catch (e) { return false; }
@@ -69,7 +74,8 @@ if ('serviceWorker' in navigator) {
       promptEvent.prompt();
       promptEvent.userChoice.then(function () { promptEvent = null; hide(); });
     } else if (isIOS) {
-      showIosSteps();
+      hide();
+      showIosTip();
     }
   }
 
@@ -87,39 +93,39 @@ if ('serviceWorker' in navigator) {
         hide();
         try { sessionStorage.setItem('mwInstallDismissed', '1'); } catch (e) {}
       });
-      document.body.appendChild(banner);
+      document.body.insertBefore(banner, document.body.firstChild);
     }
     banner.hidden = false;
   }
 
-  function showIosSteps() {
-    if (!sheet) {
-      // In-app browsers (Instagram, Facebook, Google app) can't add to Home Screen.
+  function showIosTip() {
+    if (!tip) {
+      // In-app browsers (Instagram, Facebook, Google app) have no Add to Home Screen.
       var inAppBrowser = !/Safari\//.test(ua) || /GSA\/|FBAN|FBAV|Instagram/.test(ua);
-      var shareWhere = /CriOS|EdgiOS|FxiOS/.test(ua)
-        ? 'in the address bar'
-        : 'in Safari’s toolbar (or under the ⋯ button)';
-      sheet = document.createElement('div');
-      sheet.className = 'mw-ios-sheet';
-      sheet.setAttribute('role', 'dialog');
-      sheet.setAttribute('aria-label', 'Install MoneyWise');
-      sheet.innerHTML = '<div class="mw-ios-card">'
-        + '<h3>Install MoneyWise</h3>'
-        + '<p>Add it to your Home Screen to open it like an app.</p>'
-        + '<ol>'
-        + (inAppBrowser ? '<li><span>Open this page in <b>Safari</b> first (⋯ menu → Open in Safari).</span></li>' : '')
-        + '<li><span>Tap <b>Share</b> ' + shareWhere + '.</span>' + SHARE_ICON + '</li>'
-        + '<li><span>Scroll down and tap <b>Add to Home Screen</b>.</span>' + ADD_ICON + '</li>'
-        + '<li><span>Keep <b>Open as Web App</b> on if shown, then tap <b>Add</b>.</span></li>'
-        + '</ol>'
-        + '<button type="button" class="mw-ios-ok">Got it</button>'
-        + '</div>';
-      sheet.addEventListener('click', function (e) {
-        if (e.target === sheet || e.target.classList.contains('mw-ios-ok')) sheet.hidden = true;
+      var otherBrowser = /CriOS|EdgiOS|FxiOS/.test(ua); // Share lives in the top address bar
+      var hint = '<small>Not in the list? Scroll to the bottom, tap <b>Edit Actions</b> and add it.</small>';
+      var place, html;
+      if (inAppBrowser) {
+        place = 'mw-top mw-noarrow';
+        html = 'Open this page in <b>Safari</b> first (⋯ menu → Open in Safari), then tap Install again.';
+      } else if (otherBrowser) {
+        place = 'mw-top';
+        html = 'Tap <b>Share</b> ' + SHARE_ICON + ' in the address bar, then <b>Add to Home Screen</b>.' + hint;
+      } else {
+        place = 'mw-bottom';
+        html = 'Tap <b>Share</b> ' + SHARE_ICON + ' below (or <b>⋯</b> → Share), then <b>Add to Home Screen</b>.' + hint;
+      }
+      tip = document.createElement('div');
+      tip.className = 'mw-ios-tip ' + place;
+      tip.setAttribute('role', 'status');
+      tip.innerHTML = html + '<button type="button" class="mw-ios-tip-x" aria-label="Close">&times;</button>';
+      tip.querySelector('.mw-ios-tip-x').addEventListener('click', function () {
+        tip.hidden = true;
+        if (banner) banner.hidden = false;
       });
-      document.body.appendChild(sheet);
+      document.body.appendChild(tip);
     }
-    sheet.hidden = false;
+    tip.hidden = false;
   }
 
   window.addEventListener('beforeinstallprompt', function (e) {
