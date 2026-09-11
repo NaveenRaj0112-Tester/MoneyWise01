@@ -1,9 +1,10 @@
 # MoneyWise — PHP 8.2 + Apache runtime
 FROM php:8.2-apache
 
-# mbstring build dependency (oniguruma). php:8.2-apache does not ship mbstring.
+# Build dependencies: oniguruma for mbstring, libzip for zip. php:8.2-apache ships neither,
+# and docker-php-ext-install zip fails the whole image build without libzip-dev.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libonig-dev \
+    && apt-get install -y --no-install-recommends libonig-dev libzip-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Extensions required by the app (PDO MySQL + mb_* string helpers + ZIP for app updates)
